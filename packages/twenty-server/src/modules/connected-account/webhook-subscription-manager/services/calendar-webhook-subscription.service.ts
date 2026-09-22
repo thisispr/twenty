@@ -299,6 +299,11 @@ export class CalendarWebhookSubscriptionService {
     try {
       await driver.deleteSubscription(this.toContext(calendarChannel));
 
+      await this.webhookSubscriptionStatusService.markAsExpired(
+        WebhookSubscriptionChannelType.CALENDAR,
+        calendarChannelId,
+      );
+
       this.metricsService.incrementCounterBy({
         key: MetricsKeys.ConnectedAccountWebhookSubscriptionDeleted,
         amount: 1,
@@ -337,11 +342,6 @@ export class CalendarWebhookSubscriptionService {
     }
 
     await this.deleteSubscription(calendarChannelId, workspaceId);
-
-    await this.webhookSubscriptionStatusService.markAsExpired(
-      WebhookSubscriptionChannelType.CALENDAR,
-      calendarChannelId,
-    );
   }
 
   private buildMetricAttributes(provider: string) {

@@ -23,11 +23,13 @@ import {
   IconPlayerPlay,
   IconRefresh,
   IconTrash,
+  IconUnlink,
 } from 'twenty-ui/icon';
 import { LightIconButton } from 'twenty-ui/components';
 import { MenuItem } from 'twenty-ui/primitives/navigation';
 import { useNavigateSettings } from '~/hooks/useNavigateSettings';
 import { DELETE_CONNECTED_ACCOUNT } from '../graphql/mutations/deleteConnectedAccount';
+import { DISCONNECT_CONNECTED_ACCOUNT } from '../graphql/mutations/disconnectConnectedAccount';
 
 type SettingsAccountsRowDropdownMenuProps = {
   account: ConnectedAccount;
@@ -38,6 +40,7 @@ export const SettingsAccountsRowDropdownMenu = ({
 }: SettingsAccountsRowDropdownMenuProps) => {
   const dropdownId = `settings-account-row-${account.id}`;
   const deleteAccountModalId = `delete-account-modal-${account.id}`;
+  const disconnectAccountModalId = `disconnect-account-modal-${account.id}`;
   const accountHandle = account.handle;
 
   const { t } = useLingui();
@@ -49,6 +52,9 @@ export const SettingsAccountsRowDropdownMenu = ({
   const apolloClient = useApolloClient();
   const [deleteConnectedAccountMutation] = useMutation(
     DELETE_CONNECTED_ACCOUNT,
+  );
+  const [disconnectConnectedAccountMutation] = useMutation(
+    DISCONNECT_CONNECTED_ACCOUNT,
   );
   const { triggerProviderReconnect } = useTriggerProviderReconnect();
 
@@ -64,6 +70,13 @@ export const SettingsAccountsRowDropdownMenu = ({
 
   const deleteAccount = async () => {
     await deleteConnectedAccountMutation({
+      variables: { id: account.id },
+    });
+    await apolloClient.refetchQueries({ include: 'active' });
+  };
+
+  const disconnectAccount = async () => {
+    await disconnectConnectedAccountMutation({
       variables: { id: account.id },
     });
     await apolloClient.refetchQueries({ include: 'active' });
@@ -123,7 +136,7 @@ export const SettingsAccountsRowDropdownMenu = ({
                   closeDropdown(dropdownId);
                 }}
               />
-              {account.authFailedAt && (
+              {account.provider !== ConnectedAccountProvider.APP && (
                 <MenuItem
                   LeftIcon={IconRefresh}
                   text={t`Reconnect`}
@@ -133,10 +146,20 @@ export const SettingsAccountsRowDropdownMenu = ({
                   }}
                 />
               )}
+              {!account.archivedAt && (
+                <MenuItem
+                  LeftIcon={IconUnlink}
+                  text={t`Disconnect account`}
+                  onClick={() => {
+                    closeDropdown(dropdownId);
+                    openDialog(disconnectAccountModalId);
+                  }}
+                />
+              )}
               <MenuItem
                 accent="danger"
                 LeftIcon={IconTrash}
-                text={t`Remove account`}
+                text={t`Delete account and synced data`}
                 onClick={() => {
                   closeDropdown(dropdownId);
                   openDialog(deleteAccountModalId);
@@ -147,16 +170,29 @@ export const SettingsAccountsRowDropdownMenu = ({
         }
       />
       <ConfirmationDialog
-        dialogId={deleteAccountModalId}
-        title={t`Data deletion`}
+        dialogId={disconnectAccountModalId}
+        title={t`Disconnect account`}
         subtitle={
           <Trans>
-            All emails and events linked to this account ({accountHandle}) will
-            be deleted
+            Syncing will stop and this account's credentials will be removed.
+            Your emails and events will be retained and available after you
+            reconnect.
+          </Trans>
+        }
+        onConfirmClick={disconnectAccount}
+        confirmButtonText={t`Disconnect account`}
+      />
+      <ConfirmationDialog
+        dialogId={deleteAccountModalId}
+        title={t`Delete account and synced data?`}
+        subtitle={
+          <Trans>
+            This permanently deletes {accountHandle} and all of its synced
+            emails and events. This action cannot be undone.
           </Trans>
         }
         onConfirmClick={deleteAccount}
-        confirmButtonText={t`Delete account`}
+        confirmButtonText={t`Delete account and data`}
       />
     </>
   );
