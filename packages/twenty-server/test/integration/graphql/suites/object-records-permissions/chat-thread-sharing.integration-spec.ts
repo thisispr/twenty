@@ -1,6 +1,6 @@
 import { type RecordShareService } from 'src/engine/core-modules/record-share/services/record-share.service';
 import { type BillingSubscriptionService } from 'src/engine/core-modules/billing/services/billing-subscription.service';
-import { EnableCommonRecordSharingCommand } from 'src/database/commands/upgrade-version-command/2-42/2-42-workspace-command-1790069860694-enable-common-record-sharing.command';
+import { EnableCommonRecordSharingCommand } from 'src/database/commands/upgrade-version-command/2-42/2-42-workspace-command-1790076972624-enable-common-record-sharing.command';
 import { type AgentHistoryStorageService } from 'src/engine/metadata-modules/ai/ai-history/services/agent-history-storage.service';
 import { type WorkspaceMigrationValidateBuildAndRunService } from 'src/engine/workspace-manager/workspace-migration/services/workspace-migration-validate-build-and-run-service';
 import { randomUUID } from 'node:crypto';

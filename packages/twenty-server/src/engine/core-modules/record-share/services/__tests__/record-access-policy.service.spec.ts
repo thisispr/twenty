@@ -46,6 +46,7 @@ describe('mandatory event visibility', () => {
 
       expect(
         await gate.resolveAdmittedRecordIds({
+          isSystemContext: false,
           objectsPermissions: undefined,
           principalIds: ['everyone'],
           isOwningApplication: () => owningApplication,
@@ -91,6 +92,7 @@ describe('mandatory event visibility', () => {
         ],
       });
       const ids = await gate.resolveAdmittedRecordIds({
+        isSystemContext: false,
         objectsPermissions: undefined,
         principalIds: ['member'],
         isOwningApplication: () => false,

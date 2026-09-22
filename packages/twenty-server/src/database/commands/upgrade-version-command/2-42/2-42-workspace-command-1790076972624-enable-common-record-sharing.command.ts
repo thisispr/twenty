@@ -1,3 +1,4 @@
+import { isEmptyUnprovisionedAgentHistoryWorkspace } from 'src/database/commands/upgrade-version-command/2-42/utils/is-empty-unprovisioned-agent-history-workspace.util';
 import { BillingSubscriptionService } from 'src/engine/core-modules/billing/services/billing-subscription.service';
 import { BillingEntitlementKey } from 'src/engine/core-modules/billing/enums/billing-entitlement-key.enum';
 import { preserveLegacyRecordAccess } from 'src/database/commands/upgrade-version-command/2-42/utils/preserve-legacy-record-access.util';
@@ -20,7 +21,7 @@ import { AgentHistoryStorageService } from 'src/engine/metadata-modules/ai/ai-hi
 import { WorkspaceCacheService } from 'src/engine/workspace-cache/services/workspace-cache.service';
 import { WorkspaceMigrationValidateBuildAndRunService } from 'src/engine/workspace-manager/workspace-migration/services/workspace-migration-validate-build-and-run-service';
 
-@RegisteredWorkspaceCommand('2.42.0', 1790069860694)
+@RegisteredWorkspaceCommand('2.42.0', 1790076972624)
 @Command({
   name: 'upgrade:2-42:enable-common-record-sharing',
   description:
@@ -50,7 +51,7 @@ export class EnableCommonRecordSharingCommand extends ProvisionedWorkspaceComman
   }
 
   private async apply(
-    { workspaceId, options }: RunOnWorkspaceArgs,
+    { workspaceId, options, dataSource }: RunOnWorkspaceArgs,
     isEnabled: boolean,
   ): Promise<void> {
     const { flatObjectMetadataMaps, flatFieldMetadataMaps, featureFlagsMap } =
@@ -68,6 +69,18 @@ export class EnableCommonRecordSharingCommand extends ProvisionedWorkspaceComman
         STANDARD_OBJECTS.agentChatThread.fields.title.universalIdentifier
       ];
     if (!isDefined(thread) || !isDefined(title)) {
+      if (
+        await isEmptyUnprovisionedAgentHistoryWorkspace({
+          workspaceId,
+          dataSource,
+          storage: this.storage,
+        })
+      ) {
+        this.logger.log(
+          `Skipping common sharing upgrade for workspace ${workspaceId}: schema is absent and history is empty`,
+        );
+        return;
+      }
       throw new Error(
         'Conversation metadata must be provisioned before enabling sharing',
       );

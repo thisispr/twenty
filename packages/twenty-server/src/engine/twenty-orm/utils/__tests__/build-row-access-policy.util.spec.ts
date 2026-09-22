@@ -57,6 +57,7 @@ const environment: RowAccessPolicyEnvironment = {
 };
 
 const readEverything: RowAccessPolicySubject = {
+  isSystemContext: false,
   objectsPermissions: undefined,
   principalIds: ['member-1'],
   isOwningApplication: () => false,
@@ -110,6 +111,32 @@ describe('buildRowAccessPolicy', () => {
       }),
     );
   });
+
+  it.each(Object.values(MetadataReadability))(
+    'allows trusted system reads and writes for %s metadata',
+    (readability) => {
+      for (const operationType of ['select', 'update', 'delete'] as const) {
+        expect(
+          buildRowAccessPolicy({
+            subject: {
+              ...readEverything,
+              isSystemContext: true,
+              principalIds: undefined,
+            },
+            environment,
+            tableAlias: 'internal',
+            flatObjectMetadata: {
+              ...note,
+              readability,
+              writability: MetadataWritability.SYSTEM,
+            },
+            operationType,
+            depth: 0,
+          }),
+        ).toEqual({ kind: 'open' });
+      }
+    },
+  );
 
   it('opens an OPEN object to a subject without predicate', () => {
     expect(build(readEverything, note)).toEqual({ kind: 'open' });

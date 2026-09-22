@@ -1,14 +1,17 @@
 import { STANDARD_OBJECTS } from 'twenty-shared/metadata';
 import { MetadataReadability, MetadataWritability } from 'twenty-shared/types';
 
-import { EnableCommonRecordSharingCommand } from 'src/database/commands/upgrade-version-command/2-42/2-42-workspace-command-1790069860694-enable-common-record-sharing.command';
+import { EnableCommonRecordSharingCommand } from 'src/database/commands/upgrade-version-command/2-42/2-42-workspace-command-1790076972624-enable-common-record-sharing.command';
 import { backfillChatThreadOwnerGrants } from 'src/engine/metadata-modules/ai/ai-chat/utils/backfill-chat-thread-owner-grants.util';
 
 jest.mock(
   'src/engine/metadata-modules/ai/ai-chat/utils/backfill-chat-thread-owner-grants.util',
 );
 
-const args = { workspaceId: 'workspace', options: { dryRun: false } } as never;
+const args = {
+  workspaceId: '20202020-1c25-4d02-bf25-6aeccf7ea419',
+  options: { dryRun: false },
+} as never;
 const buildCommand = () => {
   const maps = {
     featureFlagsMap: {},
@@ -52,11 +55,83 @@ const buildCommand = () => {
     migrations as never,
     {} as never,
   );
-  return { command, storage, migrations, context };
+  return { command, storage, migrations, context, maps };
 };
 
 describe('Common sharing upgrade', () => {
   beforeEach(() => jest.resetAllMocks());
+
+  it.each([
+    {
+      hasSchema: false,
+      storage: 'core',
+      migration: undefined,
+      history: [],
+      skips: true,
+    },
+    {
+      hasSchema: true,
+      storage: 'core',
+      migration: undefined,
+      history: [],
+      skips: false,
+    },
+    {
+      hasSchema: false,
+      storage: 'workspace',
+      migration: undefined,
+      history: [],
+      skips: false,
+    },
+    {
+      hasSchema: false,
+      storage: 'core',
+      migration: {},
+      history: [],
+      skips: false,
+    },
+    {
+      hasSchema: false,
+      storage: 'core',
+      migration: undefined,
+      history: [{ exists: 1 }],
+      skips: false,
+    },
+  ])(
+    'only skips absent metadata for an empty, unprovisioned workspace: %j',
+    async (scenario) => {
+      const { command, maps, migrations, storage } = buildCommand();
+      Object.assign(maps.flatObjectMetadataMaps, { byUniversalIdentifier: {} });
+      const runner = {
+        connect: jest.fn(),
+        release: jest.fn(),
+        hasSchema: jest.fn().mockResolvedValue(scenario.hasSchema),
+        query: jest.fn().mockResolvedValue(scenario.history),
+      };
+      Object.assign(storage, {
+        readState: jest.fn().mockResolvedValue({
+          storage: scenario.storage,
+          migration: scenario.migration,
+        }),
+      });
+      const result = command.up({
+        workspaceId: '20202020-1c25-4d02-bf25-6aeccf7ea419',
+        options: { dryRun: false },
+        dataSource: { createQueryRunner: () => runner },
+      } as never);
+      if (scenario.skips) {
+        await expect(result).resolves.toBeUndefined();
+      } else {
+        await expect(result).rejects.toThrow(
+          'Conversation metadata must be provisioned',
+        );
+      }
+      expect(runner.release).toHaveBeenCalledTimes(1);
+      expect(
+        migrations.validateBuildAndRunLegacyWorkspaceMigration,
+      ).not.toHaveBeenCalled();
+    },
+  );
 
   it('backfills owner access before enabling private record permissions', async () => {
     const { command, migrations } = buildCommand();
@@ -119,7 +194,7 @@ describe('Common sharing upgrade', () => {
   it('supports dry runs without changing grants or metadata', async () => {
     const { command, storage, migrations } = buildCommand();
     await command.up({
-      workspaceId: 'workspace',
+      workspaceId: '20202020-1c25-4d02-bf25-6aeccf7ea419',
       options: { dryRun: true },
     } as never);
     expect(storage.run).not.toHaveBeenCalled();

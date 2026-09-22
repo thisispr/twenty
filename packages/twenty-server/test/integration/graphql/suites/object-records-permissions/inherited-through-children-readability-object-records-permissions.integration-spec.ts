@@ -486,6 +486,7 @@ describe('inheritedThroughChildrenReadabilityObjectRecordsPermissions', () => {
             })),
           })
           .resolveAdmittedRecordIds({
+            isSystemContext: false,
             objectsPermissions: rolesPermissions[memberRole.id],
             principalIds: [
               EVERYONE_PRINCIPAL_ID,
@@ -650,6 +651,7 @@ describe('inheritedThroughChildrenReadabilityObjectRecordsPermissions', () => {
             events,
           })
           .resolveAdmittedRecordIds({
+            isSystemContext: false,
             objectsPermissions: rolesPermissions[memberRole.id],
             principalIds: [
               EVERYONE_PRINCIPAL_ID,

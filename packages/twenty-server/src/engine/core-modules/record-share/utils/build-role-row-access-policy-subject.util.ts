@@ -27,6 +27,7 @@ export const buildRoleRowAccessPolicySubject = ({
   const roleIds = isDefined(roleId) ? [roleId] : [];
 
   return {
+    isSystemContext: false,
     objectsPermissions: isDefined(roleId)
       ? rolesPermissions[roleId]
       : undefined,

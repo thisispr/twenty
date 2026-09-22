@@ -261,7 +261,7 @@ describe('inheritedReadabilityObjectRecordsPermissions', () => {
       await setRecordSharingEnabled(true);
     });
 
-    it('should show every attachment and note target as if the note were OPEN', async () => {
+    it('keeps inherited record visibility enforced when the sharing UI is disabled', async () => {
       const attachmentsResponse = await makeGraphqlAPIRequestWithMemberRole(
         findAttachmentsOperation,
       );
@@ -272,9 +272,7 @@ describe('inheritedReadabilityObjectRecordsPermissions', () => {
       expect(attachmentsResponse.body.errors).toBeUndefined();
       expect(
         collectIds(attachmentsResponse.body.data.attachments.edges),
-      ).toEqual(
-        [NOTE_ATTACHMENT_ID, PERSON_ATTACHMENT_ID, ORPHAN_ATTACHMENT_ID].sort(),
-      );
+      ).toEqual([PERSON_ATTACHMENT_ID]);
       expect(noteTargetsResponse.body.errors).toBeUndefined();
       expect(
         collectIds(noteTargetsResponse.body.data.noteTargets.edges),

@@ -1968,8 +1968,6 @@ export type EnqueueJobsInput = {
   delayMs?: InputMaybe<Scalars['Int']['input']>;
   jobs?: InputMaybe<Array<EnqueueJobItemInput>>;
   logicFunctionUniversalIdentifier: Scalars['String']['input'];
-  /** @deprecated Use jobs instead. */
-  payloads?: InputMaybe<Array<Scalars['JSON']['input']>>;
   retryLimit?: InputMaybe<Scalars['Int']['input']>;
 };
 
@@ -4440,7 +4438,6 @@ export type MutationUpgradeApplicationArgs = {
 
 export type MutationUploadAppTarballArgs = {
   file: Scalars['Upload']['input'];
-  universalIdentifier?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -6637,8 +6634,6 @@ export type UpdateViewFieldGroupInput = {
 };
 
 export type UpdateViewFieldGroupInputUpdates = {
-  /** @deprecated Ignored: view field groups are no longer soft-deleted. Use destroyViewFieldGroup instead. */
-  deletedAt?: InputMaybe<Scalars['String']['input']>;
   isVisible?: InputMaybe<Scalars['Boolean']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   position?: InputMaybe<Scalars['Float']['input']>;

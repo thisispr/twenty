@@ -17,6 +17,10 @@ export const buildRowAccessPolicy = ({
   environment,
   ...target
 }: RowAccessPolicyContext & RowAccessPolicyTarget): RowAccessPolicy => {
+  if (subject.isSystemContext) {
+    return { kind: 'open' };
+  }
+
   const context = { subject, environment };
   // Inherited write access must respect the parent's writability as well as
   // its grants; otherwise a child can become writable through a SYSTEM parent.
