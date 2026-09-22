@@ -87,7 +87,9 @@ export const Enabled: Story = {
   render: () => <SharingStory />,
   play: async ({ canvasElement }) => {
     const page = within(canvasElement.ownerDocument.body);
-    await userEvent.click(await page.findByRole('button', { name: 'Share', expanded: false }));
+    await userEvent.click(
+      await page.findByRole('button', { name: 'Share', expanded: false }),
+    );
     await expect(await page.findByText('Share note')).toBeVisible();
     await expect(page.getByText('Everyone in the workspace')).toBeVisible();
     await expect(page.getByText('Copy link')).toBeVisible();

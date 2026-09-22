@@ -1336,6 +1336,38 @@ export interface NavigationMenuItem {
 
 export type NavigationMenuItemType = 'VIEW' | 'FOLDER' | 'LINK' | 'OBJECT' | 'RECORD' | 'PAGE_LAYOUT'
 
+export interface RecordPermissionsDTO {
+    canRead: Scalars['Boolean']
+    canUpdate: Scalars['Boolean']
+    canDelete: Scalars['Boolean']
+    canSoftDelete: Scalars['Boolean']
+    __typename: 'RecordPermissionsDTO'
+}
+
+export interface RecordSharingGrantDTO {
+    id: Scalars['ID']
+    principalType: Scalars['String']
+    principalId: Scalars['UUID']
+    accessLevel: Scalars['String']
+    rowCause: Scalars['String']
+    __typename: 'RecordSharingGrantDTO'
+}
+
+export interface RecordSharingRoleDTO {
+    id: Scalars['UUID']
+    label: Scalars['String']
+    __typename: 'RecordSharingRoleDTO'
+}
+
+export interface RecordSharingDTO {
+    permissions: RecordPermissionsDTO
+    isEnabled: Scalars['Boolean']
+    hasInheritedAccess: Scalars['Boolean']
+    roles: RecordSharingRoleDTO[]
+    shares: RecordSharingGrantDTO[]
+    __typename: 'RecordSharingDTO'
+}
+
 export interface JobStatus {
     jobId: Scalars['String']
     state: JobState
@@ -3218,6 +3250,7 @@ export interface MinimalMetadata {
 }
 
 export interface Query {
+    recordSharing: RecordSharingDTO
     navigationMenuItems: NavigationMenuItem[]
     navigationMenuItem?: NavigationMenuItem
     applicationSdkClientChecksums?: SdkClientChecksums
@@ -3348,7 +3381,6 @@ export interface Query {
     findManyPublicDomains: PublicDomain[]
     exportApplication: ApplicationExport
     currentUserApplicationAuthorizations: ApplicationAuthorization[]
-    recordSharing: RecordSharingDTO
     __typename: 'Query'
 }
 
@@ -3357,6 +3389,7 @@ export type EventLogTable = 'WORKSPACE_EVENT' | 'PAGEVIEW' | 'OBJECT_EVENT' | 'U
 export interface Mutation {
     addQueryToEventStream: Scalars['Boolean']
     removeQueryFromEventStream: Scalars['Boolean']
+    setRecordShare: RecordSharingDTO
     createManyNavigationMenuItems: NavigationMenuItem[]
     createNavigationMenuItem: NavigationMenuItem
     updateManyNavigationMenuItems: NavigationMenuItem[]
@@ -3614,7 +3647,6 @@ export interface Mutation {
     revokeApplicationAuthorization: Scalars['Boolean']
     generateApplicationToken: ApplicationTokenPair
     renewApplicationToken: ApplicationTokenPair
-    setRecordShare: RecordSharingDTO
     __typename: 'Mutation'
 }
 
@@ -3631,38 +3663,6 @@ export interface Subscription {
     eventLogsLive?: EventLogRecord[]
     exportRecords: RecordExport
     __typename: 'Subscription'
-}
-
-export interface RecordPermissionsDTO {
-    canRead: Scalars['Boolean']
-    canUpdate: Scalars['Boolean']
-    canDelete: Scalars['Boolean']
-    canSoftDelete: Scalars['Boolean']
-    __typename: 'RecordPermissionsDTO'
-}
-
-export interface RecordSharingGrantDTO {
-    id: Scalars['ID']
-    principalType: Scalars['String']
-    principalId: Scalars['UUID']
-    accessLevel: Scalars['String']
-    rowCause: Scalars['String']
-    __typename: 'RecordSharingGrantDTO'
-}
-
-export interface RecordSharingRoleDTO {
-    id: Scalars['UUID']
-    label: Scalars['String']
-    __typename: 'RecordSharingRoleDTO'
-}
-
-export interface RecordSharingDTO {
-    permissions: RecordPermissionsDTO
-    isEnabled: Scalars['Boolean']
-    hasInheritedAccess: Scalars['Boolean']
-    roles: RecordSharingRoleDTO[]
-    shares: RecordSharingGrantDTO[]
-    __typename: 'RecordSharingDTO'
 }
 
 export interface BillingProductDTOGenqlSelection{
@@ -5029,6 +5029,42 @@ export interface NavigationMenuItemGenqlSelection{
     createdAt?: boolean | number
     updatedAt?: boolean | number
     targetRecordIdentifier?: RecordIdentifierGenqlSelection
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+export interface RecordPermissionsDTOGenqlSelection{
+    canRead?: boolean | number
+    canUpdate?: boolean | number
+    canDelete?: boolean | number
+    canSoftDelete?: boolean | number
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+export interface RecordSharingGrantDTOGenqlSelection{
+    id?: boolean | number
+    principalType?: boolean | number
+    principalId?: boolean | number
+    accessLevel?: boolean | number
+    rowCause?: boolean | number
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+export interface RecordSharingRoleDTOGenqlSelection{
+    id?: boolean | number
+    label?: boolean | number
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+export interface RecordSharingDTOGenqlSelection{
+    permissions?: RecordPermissionsDTOGenqlSelection
+    isEnabled?: boolean | number
+    hasInheritedAccess?: boolean | number
+    roles?: RecordSharingRoleDTOGenqlSelection
+    shares?: RecordSharingGrantDTOGenqlSelection
     __typename?: boolean | number
     __scalar?: boolean | number
 }
@@ -7017,6 +7053,7 @@ export interface MinimalMetadataGenqlSelection{
 }
 
 export interface QueryGenqlSelection{
+    recordSharing?: (RecordSharingDTOGenqlSelection & { __args: {target: RecordSharingTargetInput} })
     navigationMenuItems?: NavigationMenuItemGenqlSelection
     navigationMenuItem?: (NavigationMenuItemGenqlSelection & { __args: {id: Scalars['UUID']} })
     applicationSdkClientChecksums?: (SdkClientChecksumsGenqlSelection & { __args: {applicationId: Scalars['UUID']} })
@@ -7159,10 +7196,11 @@ export interface QueryGenqlSelection{
     findManyPublicDomains?: PublicDomainGenqlSelection
     exportApplication?: (ApplicationExportGenqlSelection & { __args: {universalIdentifier: Scalars['UUID']} })
     currentUserApplicationAuthorizations?: ApplicationAuthorizationGenqlSelection
-    recordSharing?: (RecordSharingDTOGenqlSelection & { __args: {target: RecordSharingTargetInput} })
     __typename?: boolean | number
     __scalar?: boolean | number
 }
+
+export interface RecordSharingTargetInput {objectMetadataId: Scalars['UUID'],recordId: Scalars['UUID']}
 
 export interface UsageQuotaScopeInput {resourceType: UsageResourceType,operationType: UsageOperationType,spenderType: Scalars['String'],spenderId?: (Scalars['String'] | null),periodUnit: Scalars['String'],meter: Scalars['String']}
 
@@ -7205,6 +7243,7 @@ export interface BarChartDataInput {objectMetadataId: Scalars['UUID'],configurat
 export interface MutationGenqlSelection{
     addQueryToEventStream?: { __args: {input: AddQuerySubscriptionInput} }
     removeQueryFromEventStream?: { __args: {input: RemoveQueryFromEventStreamInput} }
+    setRecordShare?: (RecordSharingDTOGenqlSelection & { __args: {target: RecordSharingTargetInput, principal: RecordSharePrincipalInput, enabled: Scalars['Boolean']} })
     createManyNavigationMenuItems?: (NavigationMenuItemGenqlSelection & { __args: {inputs: CreateNavigationMenuItemInput[]} })
     createNavigationMenuItem?: (NavigationMenuItemGenqlSelection & { __args: {input: CreateNavigationMenuItemInput} })
     updateManyNavigationMenuItems?: (NavigationMenuItemGenqlSelection & { __args: {inputs: UpdateOneNavigationMenuItemInput[]} })
@@ -7462,7 +7501,6 @@ export interface MutationGenqlSelection{
     revokeApplicationAuthorization?: { __args: {applicationAuthorizationId: Scalars['UUID']} }
     generateApplicationToken?: (ApplicationTokenPairGenqlSelection & { __args: {applicationId: Scalars['UUID']} })
     renewApplicationToken?: (ApplicationTokenPairGenqlSelection & { __args: {applicationRefreshToken: Scalars['String']} })
-    setRecordShare?: (RecordSharingDTOGenqlSelection & { __args: {target: RecordSharingTargetInput, principal: RecordSharePrincipalInput, enabled: Scalars['Boolean']} })
     __typename?: boolean | number
     __scalar?: boolean | number
 }
@@ -7470,6 +7508,8 @@ export interface MutationGenqlSelection{
 export interface AddQuerySubscriptionInput {eventStreamId: Scalars['String'],queryId: Scalars['String'],operationSignature: Scalars['JSON']}
 
 export interface RemoveQueryFromEventStreamInput {eventStreamId: Scalars['String'],queryId: Scalars['String']}
+
+export interface RecordSharePrincipalInput {workspaceMemberId?: (Scalars['UUID'] | null),roleId?: (Scalars['UUID'] | null),everyone?: (Scalars['Boolean'] | null)}
 
 export interface CreateNavigationMenuItemInput {id?: (Scalars['UUID'] | null),userWorkspaceId?: (Scalars['UUID'] | null),targetRecordId?: (Scalars['UUID'] | null),targetObjectMetadataId?: (Scalars['UUID'] | null),viewId?: (Scalars['UUID'] | null),type: NavigationMenuItemType,name?: (Scalars['String'] | null),link?: (Scalars['String'] | null),icon?: (Scalars['String'] | null),color?: (Scalars['String'] | null),folderId?: (Scalars['UUID'] | null),pageLayoutId?: (Scalars['UUID'] | null),position?: (Scalars['Float'] | null)}
 
@@ -7916,46 +7956,6 @@ export interface SubscriptionGenqlSelection{
 export interface LogicFunctionLogsInput {applicationId?: (Scalars['UUID'] | null),applicationUniversalIdentifier?: (Scalars['UUID'] | null),name?: (Scalars['String'] | null),id?: (Scalars['UUID'] | null),universalIdentifier?: (Scalars['UUID'] | null)}
 
 export interface CreateRecordExportInput {objectMetadataId: Scalars['UUID'],fieldMetadataIds: Scalars['UUID'][],filter?: (Scalars['JSON'] | null),orderBy?: (Scalars['JSON'] | null)}
-
-export interface RecordPermissionsDTOGenqlSelection{
-    canRead?: boolean | number
-    canUpdate?: boolean | number
-    canDelete?: boolean | number
-    canSoftDelete?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-export interface RecordSharingGrantDTOGenqlSelection{
-    id?: boolean | number
-    principalType?: boolean | number
-    principalId?: boolean | number
-    accessLevel?: boolean | number
-    rowCause?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-export interface RecordSharingRoleDTOGenqlSelection{
-    id?: boolean | number
-    label?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-export interface RecordSharingDTOGenqlSelection{
-    permissions?: RecordPermissionsDTOGenqlSelection
-    isEnabled?: boolean | number
-    hasInheritedAccess?: boolean | number
-    roles?: RecordSharingRoleDTOGenqlSelection
-    shares?: RecordSharingGrantDTOGenqlSelection
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-export interface RecordSharingTargetInput {objectMetadataId: Scalars['UUID'],recordId: Scalars['UUID']}
-
-export interface RecordSharePrincipalInput {workspaceMemberId?: (Scalars['UUID'] | null),roleId?: (Scalars['UUID'] | null),everyone?: (Scalars['Boolean'] | null)}
 
 
     const BillingProductDTO_possibleTypes: string[] = ['BillingLicensedProduct','BillingMeteredProduct']
@@ -8762,6 +8762,38 @@ export interface RecordSharePrincipalInput {workspaceMemberId?: (Scalars['UUID']
     export const isNavigationMenuItem = (obj?: { __typename?: any } | null): obj is NavigationMenuItem => {
       if (!obj?.__typename) throw new Error('__typename is missing in "isNavigationMenuItem"')
       return NavigationMenuItem_possibleTypes.includes(obj.__typename)
+    }
+    
+
+
+    const RecordPermissionsDTO_possibleTypes: string[] = ['RecordPermissionsDTO']
+    export const isRecordPermissionsDTO = (obj?: { __typename?: any } | null): obj is RecordPermissionsDTO => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isRecordPermissionsDTO"')
+      return RecordPermissionsDTO_possibleTypes.includes(obj.__typename)
+    }
+    
+
+
+    const RecordSharingGrantDTO_possibleTypes: string[] = ['RecordSharingGrantDTO']
+    export const isRecordSharingGrantDTO = (obj?: { __typename?: any } | null): obj is RecordSharingGrantDTO => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isRecordSharingGrantDTO"')
+      return RecordSharingGrantDTO_possibleTypes.includes(obj.__typename)
+    }
+    
+
+
+    const RecordSharingRoleDTO_possibleTypes: string[] = ['RecordSharingRoleDTO']
+    export const isRecordSharingRoleDTO = (obj?: { __typename?: any } | null): obj is RecordSharingRoleDTO => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isRecordSharingRoleDTO"')
+      return RecordSharingRoleDTO_possibleTypes.includes(obj.__typename)
+    }
+    
+
+
+    const RecordSharingDTO_possibleTypes: string[] = ['RecordSharingDTO']
+    export const isRecordSharingDTO = (obj?: { __typename?: any } | null): obj is RecordSharingDTO => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isRecordSharingDTO"')
+      return RecordSharingDTO_possibleTypes.includes(obj.__typename)
     }
     
 
@@ -10372,38 +10404,6 @@ export interface RecordSharePrincipalInput {workspaceMemberId?: (Scalars['UUID']
       return Subscription_possibleTypes.includes(obj.__typename)
     }
     
-
-
-    const RecordPermissionsDTO_possibleTypes: string[] = ['RecordPermissionsDTO']
-    export const isRecordPermissionsDTO = (obj?: { __typename?: any } | null): obj is RecordPermissionsDTO => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isRecordPermissionsDTO"')
-      return RecordPermissionsDTO_possibleTypes.includes(obj.__typename)
-    }
-
-
-
-    const RecordSharingGrantDTO_possibleTypes: string[] = ['RecordSharingGrantDTO']
-    export const isRecordSharingGrantDTO = (obj?: { __typename?: any } | null): obj is RecordSharingGrantDTO => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isRecordSharingGrantDTO"')
-      return RecordSharingGrantDTO_possibleTypes.includes(obj.__typename)
-    }
-
-
-
-    const RecordSharingRoleDTO_possibleTypes: string[] = ['RecordSharingRoleDTO']
-    export const isRecordSharingRoleDTO = (obj?: { __typename?: any } | null): obj is RecordSharingRoleDTO => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isRecordSharingRoleDTO"')
-      return RecordSharingRoleDTO_possibleTypes.includes(obj.__typename)
-    }
-
-
-
-    const RecordSharingDTO_possibleTypes: string[] = ['RecordSharingDTO']
-    export const isRecordSharingDTO = (obj?: { __typename?: any } | null): obj is RecordSharingDTO => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isRecordSharingDTO"')
-      return RecordSharingDTO_possibleTypes.includes(obj.__typename)
-    }
-
 
 export const enumApplicationRegistrationSourceType = {
    NPM: 'NPM' as const,

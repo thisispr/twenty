@@ -116,6 +116,18 @@ describe('Generic record sharing', () => {
     expect(shares.setManualShare).not.toHaveBeenCalled();
   });
 
+  it('keeps labels for existing application roles without offering unrelated application roles', async () => {
+    const { service, maps, shares } = buildService();
+    maps.flatRoleMaps.byUniversalIdentifier.role.canBeAssignedToUsers = false;
+    expect((await service.getSharing(args)).roles).toEqual([]);
+    shares.findByRecordIds.mockResolvedValue([
+      { principalType: 'ROLE', principalId: ROLE_ID, rowCause: 'APPLICATION' },
+    ]);
+    expect((await service.getSharing(args)).roles).toEqual([
+      { id: ROLE_ID, label: 'Sales' },
+    ]);
+  });
+
   it('does not reveal records outside the authenticated workspace', async () => {
     const { service } = buildService();
     await expect(

@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import {
   MetadataReadability,
   RecordShareAccessLevel,
+  RecordSharePrincipalType,
 } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 
@@ -127,7 +128,15 @@ export class RecordSharingService {
       roles: isDefined(flatRoleMaps)
         ? Object.values(flatRoleMaps.byUniversalIdentifier)
             .filter(isDefined)
-            .filter((role) => role.canBeAssignedToUsers)
+            .filter(
+              (role) =>
+                role.canBeAssignedToUsers ||
+                shares.some(
+                  (share) =>
+                    share.principalType === RecordSharePrincipalType.ROLE &&
+                    share.principalId === role.id,
+                ),
+            )
             .map(({ id, label }) => ({ id, label }))
         : [],
     };
