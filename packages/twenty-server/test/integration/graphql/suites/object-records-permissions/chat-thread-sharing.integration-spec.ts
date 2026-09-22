@@ -229,7 +229,11 @@ describe('Conversation sharing through the authenticated API', () => {
         canDelete: true,
         canSoftDelete: true,
       });
-      await chatService.archiveThread(owner);
+      const archived = await chatService.archiveThread(owner);
+      expect(archived.deletedAt?.toISOString()).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect((await chatService.getThreadById(owner)).deletedAt).toEqual(
+        archived.deletedAt,
+      );
       expect(
         (await chatService.getThreadsForUser(owner)).some(
           ({ id }) => id === owner.threadId,

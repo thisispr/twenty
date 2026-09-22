@@ -1,3 +1,4 @@
+import { mapAgentHistoryFieldNameToWorkspace } from 'src/engine/metadata-modules/ai/ai-history/utils/map-agent-history-field-name-to-workspace.util';
 import { type AgentHistoryStorageContext } from 'src/engine/metadata-modules/ai/ai-history/services/agent-history-storage.service';
 import { escapeIdentifier } from 'src/engine/workspace-manager/workspace-migration/utils/remove-sql-injection.util';
 import { AuthException } from 'src/engine/core-modules/auth/auth.exception';
@@ -79,7 +80,7 @@ export class AgentChatSharingService {
             recordIds: [args.threadId],
             operationType,
             updatedColumns,
-            withDeleted: true,
+            withDeleted: false,
           }),
       authContext,
     );
@@ -106,7 +107,7 @@ export class AgentChatSharingService {
       authContext,
       objectMetadataId: objectMetadata.id,
       recordId: args.threadId,
-      withDeleted: true,
+      withDeleted: false,
     });
   }
 
@@ -132,7 +133,7 @@ export class AgentChatSharingService {
       authContext,
       objectMetadataId: objectMetadata.id,
       recordIds: args.threadIds,
-      withDeleted: true,
+      withDeleted: false,
     });
   }
 
@@ -152,7 +153,7 @@ export class AgentChatSharingService {
     return this.workspaceOrmManager.executeInWorkspaceContext(async () => {
       const records = await this.workspaceOrmManager
         .getRepositoryWithContextPermissions('agentChatThread')
-        .find({ select: { id: true }, withDeleted: true });
+        .find({ select: { id: true }, withDeleted: false });
       return records.map(({ id }) => id);
     }, authContext);
   }
@@ -234,7 +235,18 @@ export class AgentChatSharingService {
       operationType,
       operationType === 'update' ? Object.keys(changes) : [],
       async ({ manager, table, storage }) => {
-        const entries = Object.entries(changes);
+        const entries = Object.entries(changes).map(
+          ([fieldName, value]) =>
+            [
+              storage === 'workspace'
+                ? mapAgentHistoryFieldNameToWorkspace(
+                    'agentChatThread',
+                    fieldName,
+                  )
+                : fieldName,
+              value,
+            ] as const,
+        );
         const records = await manager.query<AgentChatThreadEntity[]>(
           `WITH updated_thread AS (UPDATE ${table('agentChatThread')} SET ${entries.map(([key], index) => `${escapeIdentifier(key)} = $${index + 2}`).join(', ')}, "updatedAt" = NOW() WHERE id = $1 RETURNING *) SELECT * FROM updated_thread`,
           [args.threadId, ...entries.map(([, value]) => value)],
@@ -311,7 +323,7 @@ export class AgentChatSharingService {
                 recordIds: [args.threadId],
                 operationType,
                 updatedColumns,
-                withDeleted: true,
+                withDeleted: false,
               });
             if (allowedIds.length !== 1) return this.throwNotFound();
           }

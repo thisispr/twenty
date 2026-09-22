@@ -100,7 +100,7 @@ describe('Conversation common record access', () => {
       recordIds: [THREAD_ID],
       operationType: 'select',
       updatedColumns: [],
-      withDeleted: true,
+      withDeleted: false,
     });
   });
 
@@ -128,7 +128,7 @@ describe('Conversation common record access', () => {
       recordIds: [THREAD_ID],
       operationType: 'update',
       updatedColumns: ['title'],
-      withDeleted: true,
+      withDeleted: false,
     });
   });
 
@@ -191,7 +191,7 @@ describe('Conversation common record access', () => {
       authContext,
       objectMetadataId: 'object',
       recordId: THREAD_ID,
-      withDeleted: true,
+      withDeleted: false,
     });
   });
 
