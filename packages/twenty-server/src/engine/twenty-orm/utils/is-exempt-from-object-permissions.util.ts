@@ -8,4 +8,6 @@ export const isExemptFromObjectPermissions = (
 ): boolean =>
   objectMetadata.isSystem === true &&
   objectMetadata.universalIdentifier !==
-    STANDARD_OBJECTS.workspaceMember.universalIdentifier;
+    STANDARD_OBJECTS.workspaceMember.universalIdentifier &&
+  objectMetadata.universalIdentifier !==
+    STANDARD_OBJECTS.agentChatThread.universalIdentifier;

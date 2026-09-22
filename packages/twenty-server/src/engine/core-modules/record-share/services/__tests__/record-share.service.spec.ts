@@ -94,7 +94,7 @@ describe('Manual record share management', () => {
     ]);
   });
 
-  it('does not remove another record or source when revoking', async () => {
+  it('revokes manual grants regardless of their author without touching another record', async () => {
     const { service, rows } = buildService();
     await service.setManualShare({
       workspaceId: 'workspace',
@@ -104,7 +104,7 @@ describe('Manual record share management', () => {
     await service.setManualShare({
       workspaceId: 'workspace',
       share: { ...share, recordId: 'another-record' },
-      enabled: false,
+      enabled: true,
     });
     await service.setManualShare({
       workspaceId: 'workspace',

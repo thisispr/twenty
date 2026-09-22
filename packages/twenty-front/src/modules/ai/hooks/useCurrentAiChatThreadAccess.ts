@@ -14,10 +14,10 @@ export const useCurrentAiChatThreadAccess = () => {
     !isDefined(currentAiChatThread) ||
     currentAiChatThread === AGENT_CHAT_NEW_THREAD_DRAFT_KEY
   ) {
-    return 'owner';
+    return 'writer';
   }
-  if (!isDefined(currentAiChatThreadData?.canManage)) {
+  if (!isDefined(currentAiChatThreadData?.permissions)) {
     return 'loading';
   }
-  return currentAiChatThreadData.canManage ? 'owner' : 'viewer';
+  return currentAiChatThreadData.permissions.canUpdate ? 'writer' : 'viewer';
 };

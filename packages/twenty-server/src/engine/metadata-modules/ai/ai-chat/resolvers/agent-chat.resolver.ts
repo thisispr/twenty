@@ -1,3 +1,4 @@
+import { RecordPermissionsDTO } from 'src/engine/core-modules/record-share/dtos/record-permissions.dto';
 import { UserAuthGuard } from 'src/engine/guards/user-auth.guard';
 import { AgentChatSharingService } from 'src/engine/metadata-modules/ai/ai-chat/services/agent-chat-sharing.service';
 import { InjectAgentHistoryRepository } from 'src/engine/metadata-modules/ai/ai-history/repositories/inject-agent-history-repository.decorator';
@@ -80,12 +81,22 @@ export class AgentChatResolver {
     private readonly threadRepository: AgentHistoryRepository<AgentChatThreadEntity>,
   ) {}
 
-  @ResolveField(() => Boolean)
-  canManage(
-    @Parent() thread: AgentChatThreadEntity,
+  @ResolveField(() => RecordPermissionsDTO)
+  permissions(
+    @Parent() thread: AgentChatThreadEntity & {
+      permissions?: RecordPermissionsDTO;
+    },
     @AuthUserWorkspaceId() userWorkspaceId: string,
-  ): boolean {
-    return thread.userWorkspaceId === userWorkspaceId;
+    @AuthWorkspace() { id: workspaceId }: WorkspaceEntity,
+  ) {
+    return (
+      thread.permissions ??
+      this.sharingService.getPermissions({
+        threadId: thread.id,
+        userWorkspaceId,
+        workspaceId,
+      })
+    );
   }
 
   @Query(() => [AgentChatThreadDTO])
@@ -206,6 +217,12 @@ export class AgentChatResolver {
 
     this.aiModelRegistryService.validateModelAvailability(resolvedModelId);
 
+    await this.agentChatService.assertThreadExecutionAllowed({
+      threadId,
+      userWorkspaceId,
+      workspaceId: workspace.id,
+    });
+
     await this.aiBillingService.assertAiExecutionAllowed({
       workspaceId: workspace.id,
       operationType: UsageOperationType.AI_CHAT_TOKEN,
@@ -320,6 +337,12 @@ export class AgentChatResolver {
       getChatModelId({ requestedModelId: modelId, workspace }),
     );
 
+    await this.agentChatService.assertThreadExecutionAllowed({
+      threadId,
+      userWorkspaceId,
+      workspaceId: workspace.id,
+    });
+
     await this.aiBillingService.assertAiExecutionAllowed({
       workspaceId: workspace.id,
       operationType: UsageOperationType.AI_CHAT_TOKEN,
@@ -377,6 +400,12 @@ export class AgentChatResolver {
 
     this.aiModelRegistryService.validateModelAvailability(resolvedModelId);
 
+    await this.agentChatService.assertThreadExecutionAllowed({
+      threadId,
+      userWorkspaceId,
+      workspaceId: workspace.id,
+    });
+
     await this.aiBillingService.assertAiExecutionAllowed({
       workspaceId: workspace.id,
       operationType: UsageOperationType.AI_CHAT_TOKEN,
@@ -431,6 +460,11 @@ export class AgentChatResolver {
       return true;
     }
 
+    await this.agentChatService.assertThreadExecutionAllowed({
+      threadId,
+      userWorkspaceId,
+      workspaceId,
+    });
     const redis = this.redisClientService.getClient();
 
     await redis.publish(
@@ -468,6 +502,10 @@ export class AgentChatResolver {
     @AuthUserWorkspaceId() userWorkspaceId: string,
     @AuthWorkspace() { id: workspaceId }: WorkspaceEntity,
   ): Promise<AgentChatThreadEntity> {
+    await this.sharingService.getThreadWithAccess(
+      { threadId: id, userWorkspaceId, workspaceId },
+      'soft-delete',
+    );
     await this.cancelActiveStreamIfAny(id, userWorkspaceId, workspaceId);
 
     return this.agentChatService.archiveThread({
@@ -496,6 +534,10 @@ export class AgentChatResolver {
     @AuthUserWorkspaceId() userWorkspaceId: string,
     @AuthWorkspace() { id: workspaceId }: WorkspaceEntity,
   ): Promise<boolean> {
+    await this.sharingService.getThreadWithAccess(
+      { threadId: id, userWorkspaceId, workspaceId },
+      'delete',
+    );
     await this.cancelActiveStreamIfAny(id, userWorkspaceId, workspaceId);
 
     await this.agentChatService.hardDeleteThread({
@@ -557,6 +599,11 @@ export class AgentChatResolver {
       );
     }
 
+    await this.agentChatService.assertThreadExecutionAllowed({
+      threadId: message.threadId,
+      userWorkspaceId,
+      workspaceId: workspace.id,
+    });
     const deleted = await this.agentChatService.deleteQueuedMessage({
       messageId,
       workspaceId: workspace.id,

@@ -1,378 +1,206 @@
-import { EVERYONE_PRINCIPAL_ID } from 'twenty-shared/constants';
 import { STANDARD_OBJECTS } from 'twenty-shared/metadata';
-import {
-  FeatureFlagKey,
-  RecordShareAccessLevel,
-  RecordShareRowCause,
-} from 'twenty-shared/types';
+import { MetadataReadability } from 'twenty-shared/types';
 
+import {
+  AuthException,
+  AuthExceptionCode,
+} from 'src/engine/core-modules/auth/auth.exception';
 import { AgentChatSharingService } from 'src/engine/metadata-modules/ai/ai-chat/services/agent-chat-sharing.service';
-import { buildWorkspaceSetupChatThreadId } from 'src/engine/metadata-modules/ai/ai-chat/utils/build-workspace-setup-chat-thread-id.util';
 
 const WORKSPACE_ID = '20202020-0000-4000-8000-000000000001';
 const THREAD_ID = '20202020-0000-4000-8000-000000000002';
-const MEMBER_ID = '20202020-0000-4000-8000-000000000003';
-const ROLE_ID = '20202020-0000-4000-8000-000000000004';
-const OBJECT_METADATA_ID = '20202020-0000-4000-8000-000000000005';
-const OWNER_ID = 'owner';
-const READER_ID = 'reader';
 const args = {
   workspaceId: WORKSPACE_ID,
   threadId: THREAD_ID,
-  userWorkspaceId: READER_ID,
+  userWorkspaceId: 'reader',
 };
 
 const buildService = () => {
-  const thread = { id: THREAD_ID, userWorkspaceId: OWNER_ID };
+  const thread = { id: THREAD_ID, userWorkspaceId: 'owner' };
   const threadRepository = {
-    findOne: jest
+    findOne: jest.fn().mockResolvedValue(thread),
+    find: jest.fn().mockResolvedValue([thread]),
+  };
+  const authContext = {
+    workspace: { id: WORKSPACE_ID },
+    userWorkspaceId: 'reader',
+  };
+  const userAuthContextService = {
+    resolve: jest.fn().mockResolvedValue(authContext),
+  };
+  const repository = {
+    findRecordIdsAllowedForOperation: jest.fn().mockResolvedValue([THREAD_ID]),
+    find: jest.fn().mockResolvedValue([{ id: THREAD_ID }]),
+  };
+  const manager = {
+    executeInWorkspaceContext: jest
       .fn()
-      .mockImplementation((_workspaceId, { where }) =>
-        where.userWorkspaceId && where.userWorkspaceId !== OWNER_ID
-          ? null
-          : thread,
-      ),
+      .mockImplementation(async (work: () => Promise<unknown>) => work()),
+    getRepositoryWithContextPermissions: () => repository,
   };
-  const userWorkspaceRepository = {
-    findOne: jest.fn().mockResolvedValue({ id: READER_ID, userId: 'user' }),
+  const objectMetadata = {
+    id: 'object',
+    readability: MetadataReadability.PRIVATE,
   };
-  const shares = {
-    findByRecordIds: jest.fn().mockResolvedValue([]),
-    findManualReadRecordIdsByPrincipals: jest.fn().mockResolvedValue([]),
-    setManualShare: jest.fn(),
-  };
-  const permissions = {
-    userHasWorkspaceSettingPermission: jest.fn().mockResolvedValue(true),
-  };
-  const maps = {
-    featureFlagsMap: { [FeatureFlagKey.IS_RECORD_SHARING_ENABLED]: true },
-    flatObjectMetadataMaps: {
-      byUniversalIdentifier: {
-        [STANDARD_OBJECTS.agentChatThread.universalIdentifier]: {
-          id: OBJECT_METADATA_ID,
+  const cache = {
+    getOrRecompute: jest.fn().mockResolvedValue({
+      flatObjectMetadataMaps: {
+        byUniversalIdentifier: {
+          [STANDARD_OBJECTS.agentChatThread.universalIdentifier]:
+            objectMetadata,
         },
       },
-    },
-    flatWorkspaceMemberMaps: {
-      idByUserId: { user: MEMBER_ID },
-      byId: { [MEMBER_ID]: { id: MEMBER_ID, userWorkspaceId: READER_ID } },
-    },
-    flatRoleMaps: {
-      universalIdentifierById: { [ROLE_ID]: ROLE_ID },
-      byUniversalIdentifier: {
-        [ROLE_ID]: { id: ROLE_ID, label: 'Sales', canBeAssignedToUsers: true },
-      },
-    },
-    userWorkspaceRoleMap: { [READER_ID]: ROLE_ID },
+    }),
   };
-  const cache = { getOrRecompute: jest.fn().mockResolvedValue(maps) };
+  const aiPermissions = {
+    userHasWorkspaceSettingPermission: jest.fn().mockResolvedValue(true),
+  };
+  const permissions = {
+    canRead: true,
+    canUpdate: false,
+    canDelete: false,
+    canSoftDelete: false,
+  };
+  const sharing = {
+    getPermissions: jest.fn().mockResolvedValue(permissions),
+    getPermissionsForRecords: jest
+      .fn()
+      .mockResolvedValue(new Map([[THREAD_ID, permissions]])),
+  };
   const service = new AgentChatSharingService(
     threadRepository as never,
-    userWorkspaceRepository as never,
-    shares as never,
+    userAuthContextService as never,
+    {} as never,
     cache as never,
-    permissions as never,
+    aiPermissions as never,
+    sharing as never,
+    manager as never,
   );
   return {
     service,
-    shares,
     threadRepository,
-    userWorkspaceRepository,
+    userAuthContextService,
+    repository,
+    manager,
+    objectMetadata,
+    aiPermissions,
+    sharing,
     permissions,
-    maps,
-    thread,
+    authContext,
   };
 };
 
-const readShare = (principalId: string) => ({
-  principalId,
-  recordId: THREAD_ID,
-  accessLevel: RecordShareAccessLevel.READ,
-  rowCause: RecordShareRowCause.MANUAL,
-  sourceId: THREAD_ID,
-});
-
-describe('Agent chat sharing', () => {
-  it('makes sharing available with the rollout flag and no Enterprise entitlement provider', async () => {
-    const { service } = buildService();
-    await expect(
-      service.getSharing({ ...args, userWorkspaceId: OWNER_ID }),
-    ).resolves.toMatchObject({ canManage: true, isEnabled: true });
+describe('Conversation common record access', () => {
+  it('uses the common record policy for a non-owner reader', async () => {
+    const { service, repository } = buildService();
+    await expect(service.getReadableThread(args)).resolves.toMatchObject({
+      id: THREAD_ID,
+    });
+    expect(repository.findRecordIdsAllowedForOperation).toHaveBeenCalledWith({
+      recordIds: [THREAD_ID],
+      operationType: 'select',
+      updatedColumns: [],
+      withDeleted: true,
+    });
   });
 
-  it('keeps sharing unavailable when the rollout flag is absent', async () => {
-    const { service, maps } = buildService();
-    maps.featureFlagsMap = {} as typeof maps.featureFlagsMap;
-    await expect(
-      service.getSharing({ ...args, userWorkspaceId: OWNER_ID }),
-    ).resolves.toMatchObject({ canManage: true, isEnabled: false });
-  });
-
-  it('keeps existing owners able to read without grants when the rollout flag is disabled', async () => {
-    const { service, maps, shares } = buildService();
-    maps.featureFlagsMap[FeatureFlagKey.IS_RECORD_SHARING_ENABLED] = false;
-    await expect(
-      service.getReadableThread({ ...args, userWorkspaceId: OWNER_ID }),
-    ).resolves.toMatchObject({ id: THREAD_ID });
-    expect(shares.findByRecordIds).not.toHaveBeenCalled();
-  });
-
-  it.each([MEMBER_ID, ROLE_ID, EVERYONE_PRINCIPAL_ID])(
-    'admits a viewer granted access through %s',
-    async (principalId) => {
-      const { service, shares } = buildService();
-      shares.findByRecordIds.mockResolvedValue([readShare(principalId)]);
-      await expect(service.getReadableThread(args)).resolves.toMatchObject({
-        id: THREAD_ID,
-      });
-      expect(shares.findByRecordIds).toHaveBeenCalledWith({
-        workspaceId: WORKSPACE_ID,
-        objectMetadataId: OBJECT_METADATA_ID,
-        recordIds: [THREAD_ID],
-      });
-    },
-  );
-
-  it.each([
-    { rowCause: RecordShareRowCause.APPLICATION },
-    { sourceId: 'another-source' },
-    { accessLevel: RecordShareAccessLevel.READ_WRITE },
-  ])(
-    'ignores grants outside the owner-managed sharing dialog: %j',
-    async (override) => {
-      const { service, shares } = buildService();
-      const grant = { ...readShare(MEMBER_ID), ...override };
-      shares.findByRecordIds.mockResolvedValue([grant]);
-      await expect(service.getReadableThread(args)).rejects.toMatchObject({
-        code: 'THREAD_NOT_FOUND',
-      });
-      await expect(service.getSharedThreadIds(args)).resolves.toEqual([]);
+  it.each(['update', 'delete', 'soft-delete', 'restore'] as const)(
+    'uses the corresponding %s permission without an owner override',
+    async (operation) => {
+      const { service, repository } = buildService();
       await expect(
-        service.getSharing({ ...args, userWorkspaceId: OWNER_ID }),
-      ).resolves.toMatchObject({ shares: [] });
+        service.getThreadWithAccess(args, operation),
+      ).resolves.toBeDefined();
+      repository.findRecordIdsAllowedForOperation.mockResolvedValue([]);
+      await expect(
+        service.getThreadWithAccess(
+          { ...args, userWorkspaceId: 'owner' },
+          operation,
+        ),
+      ).rejects.toMatchObject({ code: 'THREAD_NOT_FOUND' });
     },
   );
 
-  it('denies a member with no grant and hides whether the thread exists', async () => {
-    const { service } = buildService();
-    await expect(service.getReadableThread(args)).rejects.toMatchObject({
-      code: 'THREAD_NOT_FOUND',
+  it('checks field permissions when renaming', async () => {
+    const { service, repository } = buildService();
+    await service.getThreadWithAccess(args, 'update', ['title']);
+    expect(repository.findRecordIdsAllowedForOperation).toHaveBeenCalledWith({
+      recordIds: [THREAD_ID],
+      operationType: 'update',
+      updatedColumns: ['title'],
+      withDeleted: true,
     });
   });
 
-  it('denies old grants when sharing is disabled', async () => {
-    const { service, maps, shares } = buildService();
-    maps.featureFlagsMap[FeatureFlagKey.IS_RECORD_SHARING_ENABLED] = false;
-    shares.findByRecordIds.mockResolvedValue([
-      readShare(EVERYONE_PRINCIPAL_ID),
-    ]);
-    await expect(service.getReadableThread(args)).rejects.toMatchObject({
-      code: 'THREAD_NOT_FOUND',
-    });
-    await expect(service.getSharedThreadIds(args)).resolves.toEqual([]);
-  });
-
-  it('rechecks grants on every read so revocation takes effect', async () => {
-    const { service, shares } = buildService();
-    shares.findByRecordIds
-      .mockResolvedValueOnce([readShare(MEMBER_ID)])
-      .mockResolvedValue([]);
+  it('rechecks the authenticated subject and policy on every read', async () => {
+    const { service, repository, userAuthContextService } = buildService();
     await expect(service.getReadableThread(args)).resolves.toBeDefined();
+    repository.findRecordIdsAllowedForOperation.mockResolvedValue([]);
     await expect(service.getReadableThread(args)).rejects.toMatchObject({
       code: 'THREAD_NOT_FOUND',
     });
+    expect(userAuthContextService.resolve).toHaveBeenCalledTimes(2);
   });
 
-  it('rechecks role membership instead of persisting an expanded member list', async () => {
-    const { service, shares, maps } = buildService();
-    shares.findByRecordIds.mockResolvedValue([readShare(ROLE_ID)]);
-    await expect(service.getReadableThread(args)).resolves.toBeDefined();
-    maps.userWorkspaceRoleMap[READER_ID] = 'another-role';
+  it('hides history from removed members', async () => {
+    const { service, userAuthContextService, threadRepository } =
+      buildService();
+    userAuthContextService.resolve.mockRejectedValue(
+      new AuthException('Removed', AuthExceptionCode.UNAUTHENTICATED),
+    );
     await expect(service.getReadableThread(args)).rejects.toMatchObject({
       code: 'THREAD_NOT_FOUND',
     });
+    expect(threadRepository.findOne).not.toHaveBeenCalled();
   });
 
-  it('denies removed workspace members even with an everyone grant', async () => {
-    const { service, shares, userWorkspaceRepository } = buildService();
-    shares.findByRecordIds.mockResolvedValue([
-      readShare(EVERYONE_PRINCIPAL_ID),
-    ]);
-    userWorkspaceRepository.findOne.mockResolvedValue(null);
-    await expect(service.getReadableThread(args)).rejects.toMatchObject({
-      code: 'THREAD_NOT_FOUND',
-    });
-    expect(userWorkspaceRepository.findOne).toHaveBeenCalledWith({
-      where: { id: READER_ID, workspaceId: WORKSPACE_ID },
-    });
-  });
-
-  it('denies readers whose AI permission was revoked', async () => {
-    const { service, permissions, shares } = buildService();
-    shares.findByRecordIds.mockResolvedValue([
-      readShare(EVERYONE_PRINCIPAL_ID),
-    ]);
-    permissions.userHasWorkspaceSettingPermission.mockResolvedValue(false);
-    await expect(service.getReadableThread(args)).rejects.toMatchObject({
-      code: 'THREAD_NOT_FOUND',
-    });
-  });
-
-  it('does not expose grants to viewers', async () => {
-    const { service, shares } = buildService();
-    shares.findByRecordIds.mockResolvedValue([readShare(MEMBER_ID)]);
-    await expect(service.getSharing(args)).resolves.toEqual({
-      canManage: false,
-      roles: [],
-      isEnabled: true,
-      shares: [],
-    });
-  });
-
-  it('does not allow viewers to grant access', async () => {
-    const { service, shares } = buildService();
-    await expect(
-      service.setShare({ ...args, target: { everyone: true }, enabled: true }),
-    ).rejects.toMatchObject({ code: 'THREAD_NOT_FOUND' });
-    expect(shares.setManualShare).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    { workspaceMemberId: MEMBER_ID },
-    { roleId: ROLE_ID },
-    { everyone: true },
-  ])('allows owners to grant only read access to %j', async (target) => {
-    const { service, shares } = buildService();
-    await service.setShare({
-      ...args,
-      userWorkspaceId: OWNER_ID,
-      target,
-      enabled: true,
-    });
-    expect(shares.setManualShare).toHaveBeenCalledWith(
-      expect.objectContaining({
-        workspaceId: WORKSPACE_ID,
-        enabled: true,
-        share: expect.objectContaining({
-          recordId: THREAD_ID,
-          objectMetadataId: OBJECT_METADATA_ID,
-          accessLevel: RecordShareAccessLevel.READ,
-          sourceId: THREAD_ID,
-        }),
-      }),
+  it('does not hide infrastructure failures as missing records', async () => {
+    const { service, userAuthContextService } = buildService();
+    userAuthContextService.resolve.mockRejectedValue(
+      new Error('Database unavailable'),
+    );
+    await expect(service.getReadableThread(args)).rejects.toThrow(
+      'Database unavailable',
     );
   });
 
-  it('rejects principals outside the workspace', async () => {
-    const { service, shares } = buildService();
-    await expect(
-      service.setShare({
-        ...args,
-        userWorkspaceId: OWNER_ID,
-        target: { workspaceMemberId: OBJECT_METADATA_ID },
-        enabled: true,
-      }),
-    ).rejects.toMatchObject({ code: 'INVALID_SHARE_WITH' });
-    expect(shares.setManualShare).not.toHaveBeenCalled();
-  });
-
-  it('rejects ambiguous principal targets', async () => {
-    const { service } = buildService();
-    await expect(
-      service.setShare({
-        ...args,
-        userWorkspaceId: OWNER_ID,
-        target: { everyone: true, roleId: ROLE_ID },
-        enabled: true,
-      }),
-    ).rejects.toMatchObject({ code: 'INVALID_SHARE_WITH' });
-  });
-
-  it('allows revocation after disabling the rollout flag or deleting a member', async () => {
-    const { service, maps, shares } = buildService();
-    maps.featureFlagsMap[FeatureFlagKey.IS_RECORD_SHARING_ENABLED] = false;
-    await service.setShare({
-      ...args,
-      userWorkspaceId: OWNER_ID,
-      target: { workspaceMemberId: OBJECT_METADATA_ID },
-      enabled: false,
+  it('denies access when AI permission has been revoked', async () => {
+    const { service, aiPermissions } = buildService();
+    aiPermissions.userHasWorkspaceSettingPermission.mockResolvedValue(false);
+    await expect(service.getReadableThread(args)).rejects.toMatchObject({
+      code: 'THREAD_NOT_FOUND',
     });
-    expect(shares.setManualShare).toHaveBeenCalledWith(
-      expect.objectContaining({ enabled: false }),
-    );
   });
 
-  it('lets owners revoke an existing setup-thread grant', async () => {
-    const { service, shares } = buildService();
-    const threadId = buildWorkspaceSetupChatThreadId({
-      workspaceId: WORKSPACE_ID,
-      userWorkspaceId: OWNER_ID,
+  it('keeps legacy SYSTEM history owner-only until migration', async () => {
+    const { service, objectMetadata, repository } = buildService();
+    objectMetadata.readability = MetadataReadability.SYSTEM;
+    await expect(service.getReadableThread(args)).rejects.toMatchObject({
+      code: 'THREAD_NOT_FOUND',
     });
-    await service.setShare({
-      ...args,
-      threadId,
-      userWorkspaceId: OWNER_ID,
-      target: { everyone: true },
-      enabled: false,
+    await expect(
+      service.getReadableThread({ ...args, userWorkspaceId: 'owner' }),
+    ).resolves.toBeDefined();
+    expect(repository.findRecordIdsAllowedForOperation).not.toHaveBeenCalled();
+  });
+
+  it('returns common capabilities, including destructive permission differences', async () => {
+    const { service, sharing, permissions, authContext } = buildService();
+    await expect(service.getPermissions(args)).resolves.toEqual(permissions);
+    expect(sharing.getPermissions).toHaveBeenCalledWith({
+      authContext,
+      objectMetadataId: 'object',
+      recordId: THREAD_ID,
+      withDeleted: true,
     });
-    expect(shares.setManualShare).toHaveBeenCalledWith(
-      expect.objectContaining({
-        enabled: false,
-        share: expect.objectContaining({ recordId: threadId }),
-      }),
-    );
   });
 
-  it('keeps setup history private even if a grant was inserted outside the API', async () => {
-    const { service, shares, thread } = buildService();
-    thread.id = buildWorkspaceSetupChatThreadId({
-      workspaceId: WORKSPACE_ID,
-      userWorkspaceId: OWNER_ID,
-    });
-    shares.findByRecordIds.mockResolvedValue([
-      { ...readShare(MEMBER_ID), recordId: thread.id, sourceId: thread.id },
-    ]);
-    await expect(
-      service.getReadableThread({ ...args, threadId: thread.id }),
-    ).rejects.toMatchObject({ code: 'THREAD_NOT_FOUND' });
-  });
-
-  it('rejects new grants while the rollout flag is disabled', async () => {
-    const { service, maps, shares } = buildService();
-    maps.featureFlagsMap[FeatureFlagKey.IS_RECORD_SHARING_ENABLED] = false;
-    await expect(
-      service.setShare({
-        ...args,
-        userWorkspaceId: OWNER_ID,
-        target: { everyone: true },
-        enabled: true,
-      }),
-    ).rejects.toMatchObject({ code: 'INVALID_AGENT_INPUT' });
-    expect(shares.setManualShare).not.toHaveBeenCalled();
-  });
-
-  it('never shares the privileged workspace setup conversation', async () => {
-    const { service, shares } = buildService();
-    await expect(
-      service.setShare({
-        ...args,
-        userWorkspaceId: OWNER_ID,
-        threadId: buildWorkspaceSetupChatThreadId({
-          workspaceId: WORKSPACE_ID,
-          userWorkspaceId: OWNER_ID,
-        }),
-        target: { everyone: true },
-        enabled: true,
-      }),
-    ).rejects.toMatchObject({ code: 'INVALID_AGENT_INPUT' });
-    expect(shares.setManualShare).not.toHaveBeenCalled();
-  });
-
-  it('uses distinct readable IDs from the share repository', async () => {
-    const { service, shares } = buildService();
-    shares.findManualReadRecordIdsByPrincipals.mockResolvedValue([THREAD_ID]);
-    await expect(service.getSharedThreadIds(args)).resolves.toEqual([
+  it('batches capabilities and lists only records admitted by the ordinary repository', async () => {
+    const { service, sharing } = buildService();
+    await expect(service.getReadableThreadIds(args)).resolves.toEqual([
       THREAD_ID,
     ]);
+    await service.getPermissionsForThreads({ ...args, threadIds: [THREAD_ID] });
+    expect(sharing.getPermissionsForRecords).toHaveBeenCalledTimes(1);
   });
 });

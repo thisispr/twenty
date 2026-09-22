@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 
-type AiChatSharingRefreshEffectProps = {
+type RecordSharingRefreshEffectProps = {
   refetch: () => Promise<unknown>;
 };
 
-export const AiChatSharingRefreshEffect = ({
+export const RecordSharingRefreshEffect = ({
   refetch,
-}: AiChatSharingRefreshEffectProps) => {
+}: RecordSharingRefreshEffectProps) => {
   useEffect(() => {
     const refreshOnFocus = () => {
       if (document.visibilityState === 'visible') {

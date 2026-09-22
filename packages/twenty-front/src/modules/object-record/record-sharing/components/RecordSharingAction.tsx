@@ -11,20 +11,20 @@ const StyledAction = styled.button`
   width: 100%;
 `;
 
-type AiChatSharingActionProps = Pick<
+type RecordSharingActionProps = Pick<
   MenuItemProps,
   'text' | 'contextualText' | 'LeftIcon' | 'disabled'
 > & {
   onClick: () => void;
 };
 
-export const AiChatSharingAction = ({
+export const RecordSharingAction = ({
   onClick,
   disabled,
   text,
   contextualText,
   LeftIcon,
-}: AiChatSharingActionProps) => (
+}: RecordSharingActionProps) => (
   <StyledAction type="button" disabled={disabled} onClick={onClick}>
     <MenuItem
       text={text}

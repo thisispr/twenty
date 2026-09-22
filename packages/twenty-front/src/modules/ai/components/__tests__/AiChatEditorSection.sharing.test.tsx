@@ -34,9 +34,21 @@ describe('Shared conversation composer', () => {
 
   it.each([false, undefined])(
     'never mounts an editable composer for a viewer or unknown access (%s)',
-    (canManage) => {
+    (canUpdate) => {
       const threads =
-        canManage === undefined ? [] : [{ id: 'shared-thread', canManage }];
+        canUpdate === undefined
+          ? []
+          : [
+              {
+                id: 'shared-thread',
+                permissions: {
+                  canRead: true,
+                  canUpdate,
+                  canDelete: false,
+                  canSoftDelete: false,
+                },
+              },
+            ];
       jotaiStore.set(metadataStoreState.atomFamily('agentChatThreads'), {
         current: threads,
         draft: threads,
@@ -44,9 +56,9 @@ describe('Shared conversation composer', () => {
       });
       render(<AiChatEditorSection />, { wrapper: Wrapper });
       expect(screen.getByRole('status')).toHaveTextContent(
-        canManage === undefined
+        canUpdate === undefined
           ? 'Loading conversation'
-          : 'only the owner can send messages',
+          : 'You can read this conversation',
       );
       expect(screen.queryByRole('textbox')).toBeNull();
       expect(useAiChatEditor).not.toHaveBeenCalled();

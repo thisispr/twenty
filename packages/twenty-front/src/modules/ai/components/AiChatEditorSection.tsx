@@ -219,13 +219,13 @@ export const AiChatEditorSection = () => {
   const { t } = useLingui();
   const isMobile = useIsMobile();
   const access = useCurrentAiChatThreadAccess();
-  if (access !== 'owner') {
+  if (access !== 'writer') {
     return (
       <StyledInputArea isMobile={isMobile}>
         <div role="status">
           {access === 'loading'
             ? t`Loading conversation…`
-            : t`View only — only the owner can send messages in this conversation.`}
+            : t`View only — You can read this conversation.`}
         </div>
         <AiChatStandaloneError />
       </StyledInputArea>

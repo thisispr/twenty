@@ -8,8 +8,8 @@ import { ApolloProvider } from '@apollo/client/react';
 import { act, render, renderHook, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 
-import { AiChatSharingRefreshEffect } from '@/ai/components/AiChatSharingRefreshEffect';
-import { useChatThreadSharing } from '@/ai/hooks/useChatThreadSharing';
+import { RecordSharingRefreshEffect } from '@/object-record/record-sharing/components/RecordSharingRefreshEffect';
+import { useRecordSharing } from '@/object-record/record-sharing/hooks/useRecordSharing';
 
 const mockEnqueueToast = jest.fn();
 
@@ -19,28 +19,36 @@ jest.mock('twenty-ui/primitives/feedback', () => ({
 
 const createHarness = () => {
   const sharing = {
-    __typename: 'ChatThreadSharingDTO',
-    canManage: true,
+    __typename: 'RecordSharingDTO',
+    permissions: {
+      canRead: true,
+      canUpdate: true,
+      canDelete: true,
+      canSoftDelete: true,
+    },
     isEnabled: true,
+    hasInheritedAccess: false,
     shares: [],
     roles: [],
   };
   const request = jest.fn((operationName: string | undefined) =>
-    operationName === 'SetChatThreadShare'
+    operationName === 'SetRecordShare'
       ? {
-          setChatThreadShare: {
+          setRecordShare: {
             ...sharing,
             shares: [
               {
-                __typename: 'ChatThreadShareDTO',
+                __typename: 'RecordSharingGrantDTO',
                 id: 'grant',
                 principalId: 'member',
                 principalType: 'WORKSPACE_MEMBER',
+                accessLevel: 'READ',
+                rowCause: 'MANUAL',
               },
             ],
           },
         }
-      : { chatThreadSharing: sharing },
+      : { recordSharing: sharing },
   );
   const client = new ApolloClient({
     cache: new InMemoryCache(),
@@ -62,7 +70,7 @@ const createHarness = () => {
   return { request, wrapper };
 };
 
-describe('useChatThreadSharing', () => {
+describe('useRecordSharing', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
@@ -71,12 +79,22 @@ describe('useChatThreadSharing', () => {
 
   it('updates the audience from the successful mutation without another request', async () => {
     const { request, wrapper } = createHarness();
-    const { result } = renderHook(() => useChatThreadSharing('thread', false), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () =>
+        useRecordSharing(
+          { objectMetadataId: 'note', recordId: 'record' },
+          false,
+        ),
+      {
+        wrapper,
+      },
+    );
     await waitFor(() => expect(result.current.sharing?.isEnabled).toBe(true));
     await act(async () => {
-      await result.current.setShare({ workspaceMemberId: 'member' }, true);
+      await result.current.setShare({
+        principal: { workspaceMemberId: 'member' },
+        enabled: true,
+      });
     });
     expect(request).toHaveBeenCalledTimes(2);
     expect(result.current.sharing?.shares).toEqual([
@@ -87,15 +105,25 @@ describe('useChatThreadSharing', () => {
 
   it('reports a rejected mutation without changing the saved audience', async () => {
     const { request, wrapper } = createHarness();
-    const { result } = renderHook(() => useChatThreadSharing('thread', false), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () =>
+        useRecordSharing(
+          { objectMetadataId: 'note', recordId: 'record' },
+          false,
+        ),
+      {
+        wrapper,
+      },
+    );
     await waitFor(() => expect(result.current.sharing?.isEnabled).toBe(true));
     request.mockImplementationOnce(() => {
       throw new Error('Save failed');
     });
     await act(async () => {
-      await result.current.setShare({ workspaceMemberId: 'member' }, true);
+      await result.current.setShare({
+        principal: { workspaceMemberId: 'member' },
+        enabled: true,
+      });
     });
     expect(result.current.sharing?.shares).toEqual([]);
     expect(mockEnqueueToast).toHaveBeenCalledTimes(1);
@@ -104,7 +132,11 @@ describe('useChatThreadSharing', () => {
   it('fetches availability once while closed and polls only while open', async () => {
     const { request, wrapper } = createHarness();
     const { result, rerender } = renderHook(
-      ({ isOpen }) => useChatThreadSharing('thread', isOpen),
+      ({ isOpen }) =>
+        useRecordSharing(
+          { objectMetadataId: 'note', recordId: 'record' },
+          isOpen,
+        ),
       { wrapper, initialProps: { isOpen: false } },
     );
     await waitFor(() => expect(result.current.sharing?.isEnabled).toBe(true));
@@ -127,8 +159,11 @@ describe('useChatThreadSharing', () => {
   it('refreshes on focus and removes the listener on unmount', async () => {
     const { request, wrapper } = createHarness();
     const TestSharingRefresh = () => {
-      const { refetch } = useChatThreadSharing('thread', false);
-      return <AiChatSharingRefreshEffect refetch={refetch} />;
+      const { refetch } = useRecordSharing(
+        { objectMetadataId: 'note', recordId: 'record' },
+        false,
+      );
+      return <RecordSharingRefreshEffect refetch={refetch} />;
     };
     const { unmount } = render(<TestSharingRefresh />, { wrapper });
     await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
@@ -143,9 +178,16 @@ describe('useChatThreadSharing', () => {
 
   it('retains confirmed availability on a refresh error so retry stays reachable', async () => {
     const { request, wrapper } = createHarness();
-    const { result } = renderHook(() => useChatThreadSharing('thread', false), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () =>
+        useRecordSharing(
+          { objectMetadataId: 'note', recordId: 'record' },
+          false,
+        ),
+      {
+        wrapper,
+      },
+    );
     await waitFor(() => expect(result.current.sharing?.isEnabled).toBe(true));
     request.mockImplementationOnce(() => {
       throw new Error('Network unavailable');

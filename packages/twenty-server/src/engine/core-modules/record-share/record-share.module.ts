@@ -1,5 +1,5 @@
-/* @license Enterprise */
-
+import { RecordSharingResolver } from 'src/engine/core-modules/record-share/resolvers/record-sharing.resolver';
+import { RecordSharingService } from 'src/engine/core-modules/record-share/services/record-sharing.service';
 import { Module } from '@nestjs/common';
 
 import { RecordSharingFeatureModule } from 'src/engine/core-modules/record-share/record-sharing-feature.module';
@@ -16,9 +16,15 @@ import { WorkspaceCacheModule } from 'src/engine/workspace-cache/workspace-cache
     RecordSharingFeatureModule,
     RecordShareStorageModule,
   ],
-  providers: [ShareWithService, RecordAccessPolicyService],
+  providers: [
+    ShareWithService,
+    RecordAccessPolicyService,
+    RecordSharingService,
+    RecordSharingResolver,
+  ],
   exports: [
     RecordShareStorageModule,
+    RecordSharingService,
     ShareWithService,
     RecordAccessPolicyService,
   ],

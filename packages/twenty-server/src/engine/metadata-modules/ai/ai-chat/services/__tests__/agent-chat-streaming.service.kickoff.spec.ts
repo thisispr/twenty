@@ -41,6 +41,7 @@ describe('AgentChatStreamingService.startHiddenKickoffStream', () => {
     };
     const messageQueueService = { add: jest.fn().mockResolvedValue(undefined) };
     const agentChatService = {
+      assertThreadExecutionAllowed: jest.fn().mockResolvedValue(undefined),
       hasConversationMessages: jest
         .fn()
         .mockResolvedValue(hasConversationMessages),

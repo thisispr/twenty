@@ -1,3 +1,4 @@
+import { isGraphqlErrorOfType } from '~/utils/is-graphql-error-of-type.util';
 import { isDefined } from 'twenty-shared/utils';
 
 export const isChatAccessDenied = (
@@ -6,6 +7,8 @@ export const isChatAccessDenied = (
     | undefined,
 ) =>
   isDefined(errors) &&
-  errors.some((error) =>
-    ['NOT_FOUND', 'FORBIDDEN'].includes(String(error.extensions?.code)),
+  errors.some(
+    (error) =>
+      isGraphqlErrorOfType(error, 'NOT_FOUND') ||
+      isGraphqlErrorOfType(error, 'FORBIDDEN'),
   );

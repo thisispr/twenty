@@ -132,6 +132,11 @@ export class AgentChatStreamingService {
       }
     | { queued: true; messageId: string }
   > {
+    await this.agentChatService.assertThreadExecutionAllowed({
+      threadId,
+      userWorkspaceId,
+      workspaceId: workspace.id,
+    });
     const thread = await this.threadRepository.findOne(workspace.id, {
       where: {
         id: threadId,
@@ -373,6 +378,11 @@ export class AgentChatStreamingService {
     workspace: WorkspaceEntity;
     modelId?: string;
   }): Promise<{ streamId: string; messageId: string; turnId: string }> {
+    await this.agentChatService.assertThreadExecutionAllowed({
+      threadId,
+      userWorkspaceId,
+      workspaceId: workspace.id,
+    });
     const thread = await this.threadRepository.findOne(workspace.id, {
       where: { id: threadId, userWorkspaceId },
     });
@@ -507,6 +517,11 @@ export class AgentChatStreamingService {
     modelId?: string;
     fileAttachments?: AiChatFileAttachment[];
   }): Promise<{ streamId: string; turnId: string | null }> {
+    await this.agentChatService.assertThreadExecutionAllowed({
+      threadId,
+      userWorkspaceId,
+      workspaceId: workspace.id,
+    });
     const thread = await this.threadRepository.findOne(workspace.id, {
       where: { id: threadId },
       select: ['id', 'activeStreamId'],

@@ -28,7 +28,6 @@ export type RowAccessPolicySubject = {
 };
 
 export type RowAccessPolicyEnvironment = {
-  isRecordSharingEnabled: boolean;
   flatFieldMetadataMaps: FlatEntityMaps<OrmFlatFieldMetadata>;
   flatObjectMetadataMaps: FlatEntityMaps<FlatObjectMetadata>;
   recordShareTableExpression: string;

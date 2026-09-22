@@ -1,3 +1,7 @@
+import {
+  AiException,
+  AiExceptionCode,
+} from 'src/engine/metadata-modules/ai/ai.exception';
 import { AgentChatResolver } from 'src/engine/metadata-modules/ai/ai-chat/resolvers/agent-chat.resolver';
 import { AgentChatService } from 'src/engine/metadata-modules/ai/ai-chat/services/agent-chat.service';
 
@@ -21,6 +25,33 @@ const buildResolver = () => {
     getReadableThread: jest
       .fn()
       .mockResolvedValue({ id: THREAD_ID, userWorkspaceId: 'owner' }),
+    getThreadWithAccess: jest
+      .fn()
+      .mockImplementation(async ({ userWorkspaceId }) => {
+        if (userWorkspaceId !== 'owner')
+          throw new AiException(
+            'Thread not found',
+            AiExceptionCode.THREAD_NOT_FOUND,
+          );
+        return {
+          id: THREAD_ID,
+          userWorkspaceId: 'owner',
+          workspaceId: WORKSPACE_ID,
+        };
+      }),
+    getPermissions: jest
+      .fn()
+      .mockImplementation(async ({ userWorkspaceId }) => ({
+        canRead: true,
+        canUpdate: userWorkspaceId === 'owner',
+        canDelete: userWorkspaceId === 'owner',
+        canSoftDelete: userWorkspaceId === 'owner',
+      })),
+    updateThreadWithAccess: jest
+      .fn()
+      .mockRejectedValue(
+        new AiException('Thread not found', AiExceptionCode.THREAD_NOT_FOUND),
+      ),
     deleteThreadWithShares: jest.fn(),
   };
   const broadcaster = { broadcast: jest.fn() };
@@ -103,8 +134,12 @@ describe('Shared conversation API boundaries', () => {
   it('returns readable threads and catchup to viewers without granting ownership', async () => {
     const { resolver } = buildResolver();
     const thread = await resolver.chatThread(THREAD_ID, VIEWER_ID, workspace);
-    expect(resolver.canManage(thread, VIEWER_ID)).toBe(false);
-    expect(resolver.canManage(thread, 'owner')).toBe(true);
+    await expect(
+      resolver.permissions(thread, VIEWER_ID, workspace),
+    ).resolves.toMatchObject({ canRead: true, canUpdate: false });
+    await expect(
+      resolver.permissions(thread, 'owner', workspace),
+    ).resolves.toMatchObject({ canUpdate: true });
     await expect(
       resolver.chatStreamCatchupChunks(THREAD_ID, VIEWER_ID, workspace),
     ).resolves.toMatchObject({ chunks: [] });
@@ -159,19 +194,7 @@ describe('Shared conversation API boundaries', () => {
       await expect(operations[operation]()).rejects.toMatchObject({
         code: 'THREAD_NOT_FOUND',
       });
-      if (operation === 'rename') {
-        expect(context.threadRepository.update).toHaveBeenCalledWith(
-          WORKSPACE_ID,
-          { id: THREAD_ID, userWorkspaceId: VIEWER_ID },
-          { title: 'Changed' },
-        );
-      } else {
-        expect(context.threadRepository.findOne).toHaveBeenCalledWith(
-          WORKSPACE_ID,
-          { where: { id: THREAD_ID, userWorkspaceId: VIEWER_ID } },
-        );
-        expect(context.threadRepository.update).not.toHaveBeenCalled();
-      }
+      expect(context.threadRepository.update).not.toHaveBeenCalled();
       expect(context.threadRepository.delete).not.toHaveBeenCalled();
       expect(context.messages.delete).not.toHaveBeenCalled();
       expect(context.streaming.streamAgentChat).not.toHaveBeenCalled();
@@ -182,6 +205,36 @@ describe('Shared conversation API boundaries', () => {
       expect(context.redis.getClient).not.toHaveBeenCalled();
     },
   );
+
+  it('does not let a writable non-owner execute queued messages as the owner', async () => {
+    const { chatService, sharing } = buildResolver();
+    sharing.getThreadWithAccess.mockResolvedValue({
+      id: THREAD_ID,
+      userWorkspaceId: 'owner',
+      workspaceId: WORKSPACE_ID,
+    });
+    await expect(
+      chatService.assertThreadExecutionAllowed({
+        threadId: THREAD_ID,
+        userWorkspaceId: VIEWER_ID,
+        workspaceId: WORKSPACE_ID,
+      }),
+    ).rejects.toMatchObject({ code: 'THREAD_NOT_FOUND' });
+  });
+
+  it('does not let ownership bypass a revoked update permission', async () => {
+    const { chatService, sharing } = buildResolver();
+    sharing.getThreadWithAccess.mockRejectedValue(
+      new AiException('Thread not found', AiExceptionCode.THREAD_NOT_FOUND),
+    );
+    await expect(
+      chatService.assertThreadExecutionAllowed({
+        threadId: THREAD_ID,
+        userWorkspaceId: 'owner',
+        workspaceId: WORKSPACE_ID,
+      }),
+    ).rejects.toMatchObject({ code: 'THREAD_NOT_FOUND' });
+  });
 
   it('does not cancel an owner stream when a viewer requests stop', async () => {
     const { resolver, redis, threadRepository } = buildResolver();

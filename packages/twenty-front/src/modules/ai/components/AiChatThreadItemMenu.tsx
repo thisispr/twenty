@@ -1,4 +1,4 @@
-import { canManageAgentChatThreadFamilySelector } from '@/ai/states/selectors/canManageAgentChatThreadFamilySelector';
+import { agentChatThreadPermissionsFamilySelector } from '@/ai/states/selectors/agentChatThreadPermissionsFamilySelector';
 import { useAtomFamilySelectorValue } from '@/ui/utilities/state/jotai/hooks/useAtomFamilySelectorValue';
 import { useLingui } from '@lingui/react/macro';
 import { type ReactNode } from 'react';
@@ -52,8 +52,8 @@ export const AiChatThreadItemMenu = ({
     surface,
   );
 
-  const canManageAgentChatThread = useAtomFamilySelectorValue(
-    canManageAgentChatThreadFamilySelector,
+  const permissions = useAtomFamilySelectorValue(
+    agentChatThreadPermissionsFamilySelector,
     threadId,
   );
 
@@ -80,7 +80,12 @@ export const AiChatThreadItemMenu = ({
     openDialog(getAiChatThreadDeleteModalId(surface));
   };
 
-  if (!canManageAgentChatThread) {
+  if (
+    !permissions ||
+    (!permissions.canUpdate &&
+      !permissions.canDelete &&
+      !permissions.canSoftDelete)
+  ) {
     return null;
   }
 
@@ -98,22 +103,28 @@ export const AiChatThreadItemMenu = ({
       dropdownComponents={
         <DropdownContent>
           <DropdownMenuItemsContainer>
-            <MenuItem
-              text={t`Rename`}
-              LeftIcon={IconPencil}
-              onClick={handleRename}
-            />
-            <MenuItem
-              text={isArchived ? t`Unarchive` : t`Archive`}
-              LeftIcon={isArchived ? IconArchiveOff : IconArchive}
-              onClick={handleArchive}
-            />
-            <MenuItem
-              accent="danger"
-              text={t`Delete`}
-              LeftIcon={IconTrash}
-              onClick={handleDelete}
-            />
+            {permissions.canUpdate && (
+              <MenuItem
+                text={t`Rename`}
+                LeftIcon={IconPencil}
+                onClick={handleRename}
+              />
+            )}
+            {permissions.canSoftDelete && (
+              <MenuItem
+                text={isArchived ? t`Unarchive` : t`Archive`}
+                LeftIcon={isArchived ? IconArchiveOff : IconArchive}
+                onClick={handleArchive}
+              />
+            )}
+            {permissions.canDelete && (
+              <MenuItem
+                accent="danger"
+                text={t`Delete`}
+                LeftIcon={IconTrash}
+                onClick={handleDelete}
+              />
+            )}
           </DropdownMenuItemsContainer>
         </DropdownContent>
       }

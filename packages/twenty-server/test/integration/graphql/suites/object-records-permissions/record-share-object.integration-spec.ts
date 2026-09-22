@@ -132,7 +132,7 @@ describe('recordShare object', () => {
         share: { ...share, sourceId: randomUUID() },
         enabled: false,
       });
-      expect(await readShares()).toHaveLength(3);
+      expect(await readShares()).toHaveLength(2);
       await recordShareService.setManualShare({
         workspaceId,
         share,
@@ -148,54 +148,6 @@ describe('recordShare object', () => {
         workspaceId,
         objectMetadataId: personObjectMetadataId,
         recordIds: [recordId],
-      });
-    }
-  });
-
-  it('returns distinct owner-managed read grants for the requested principals', async () => {
-    const recordIds = Array.from({ length: 4 }, () => randomUUID());
-    const principalIds = [randomUUID(), randomUUID()];
-    const readGrant = {
-      ...recordShareInput,
-      principalId: principalIds[0],
-      recordId: recordIds[0],
-      sourceId: recordIds[0],
-    };
-    await recordShareService.insertMany({
-      workspaceId: SEED_APPLE_WORKSPACE_ID,
-      recordShares: [
-        readGrant,
-        { ...readGrant, principalId: principalIds[1] },
-        {
-          ...readGrant,
-          recordId: recordIds[1],
-          sourceId: recordIds[1],
-          rowCause: RecordShareRowCause.APPLICATION,
-        },
-        {
-          ...readGrant,
-          recordId: recordIds[2],
-          sourceId: recordIds[2],
-          accessLevel: RecordShareAccessLevel.READ_WRITE,
-        },
-        { ...readGrant, recordId: recordIds[3], sourceId: randomUUID() },
-      ],
-    });
-    try {
-      const findIds = (ids: string[]) =>
-        recordShareService.findManualReadRecordIdsByPrincipals({
-          workspaceId: SEED_APPLE_WORKSPACE_ID,
-          objectMetadataId: personObjectMetadataId,
-          principalIds: ids,
-        });
-      await expect(findIds(principalIds)).resolves.toEqual([recordIds[0]]);
-      await expect(findIds([randomUUID()])).resolves.toEqual([]);
-      await expect(findIds([])).resolves.toEqual([]);
-    } finally {
-      await recordShareService.deleteByRecordIds({
-        workspaceId: SEED_APPLE_WORKSPACE_ID,
-        objectMetadataId: personObjectMetadataId,
-        recordIds,
       });
     }
   });
@@ -269,7 +221,7 @@ describe('recordShare object', () => {
           objectMetadataId: metadata.id,
           recordIds: [args.threadId],
         }),
-      ).resolves.toHaveLength(1);
+      ).resolves.toHaveLength(2);
       await chatService.hardDeleteThread(args);
       await expect(chatService.findThreadById(args)).resolves.toBeNull();
       await expect(
@@ -281,7 +233,9 @@ describe('recordShare object', () => {
       ).resolves.toEqual([]);
     } finally {
       querySpy.mockRestore();
-      await sharingService.deleteThreadWithShares(args);
+      if (await chatService.findThreadById(args)) {
+        await sharingService.deleteThreadWithShares(args);
+      }
     }
   });
 

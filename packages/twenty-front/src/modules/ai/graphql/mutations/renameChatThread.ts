@@ -4,7 +4,12 @@ export const RENAME_CHAT_THREAD = gql`
   mutation RenameChatThread($id: UUID!, $title: String!) {
     renameChatThread(id: $id, title: $title) {
       id
-      canManage
+      permissions {
+        canRead
+        canUpdate
+        canDelete
+        canSoftDelete
+      }
       title
       updatedAt
     }

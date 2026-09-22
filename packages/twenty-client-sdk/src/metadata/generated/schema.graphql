@@ -3334,24 +3334,6 @@ type RecordExport {
   downloadUrl: String
 }
 
-type ChatThreadShareDTO {
-  id: ID!
-  principalType: String!
-  principalId: UUID!
-}
-
-type ChatThreadSharingRoleDTO {
-  id: UUID!
-  label: String!
-}
-
-type ChatThreadSharingDTO {
-  canManage: Boolean!
-  isEnabled: Boolean!
-  roles: [ChatThreadSharingRoleDTO!]!
-  shares: [ChatThreadShareDTO!]!
-}
-
 type AiChatUsage {
   limitValue: BigInt!
   consumedValue: BigInt
@@ -3399,7 +3381,7 @@ type AgentChatThread {
   updatedAt: DateTime!
   deletedAt: DateTime
   lastMessageAt: DateTime
-  canManage: Boolean!
+  permissions: RecordPermissionsDTO!
 }
 
 type AiSystemPromptSection {
@@ -3798,7 +3780,6 @@ type Query {
   appConnections(filter: ListAppConnectionsInput): [AppConnection!]!
   appConnection(id: ID!): AppConnection!
   findWorkspaceAiStats: WorkspaceAiStats!
-  chatThreadSharing(threadId: UUID!): ChatThreadSharingDTO!
   aiChatUsage: AiChatUsage
   chatThreads: [AgentChatThread!]!
   chatThread(id: UUID!): AgentChatThread!
@@ -3829,6 +3810,7 @@ type Query {
   findManyPublicDomains: [PublicDomain!]!
   exportApplication(universalIdentifier: UUID!): ApplicationExport!
   currentUserApplicationAuthorizations: [ApplicationAuthorization!]!
+  recordSharing(target: RecordSharingTargetInput!): RecordSharingDTO!
 }
 
 input UsageQuotaScopeInput {
@@ -4131,7 +4113,6 @@ type Mutation {
   enqueueJob(input: EnqueueJobInput!): EnqueueJobResult! @deprecated(reason: "Use enqueueJobs instead.")
   enqueueJobs(input: EnqueueJobsInput!): EnqueueJobsResult!
   reportAppConnectionAuthFailure(input: ReportAppConnectionAuthFailureInput!): Boolean!
-  setChatThreadShare(threadId: UUID!, target: ChatThreadShareTargetInput!, enabled: Boolean!): ChatThreadSharingDTO!
   createChatThread: AgentChatThread!
   sendChatMessage(threadId: UUID!, text: String!, messageId: UUID!, browsingContext: JSON, modelId: String, fileAttachments: [FileAttachmentInput!]): SendChatMessageResult!
   retryChatMessage(threadId: UUID!, modelId: String): SendChatMessageResult!
@@ -4206,6 +4187,7 @@ type Mutation {
   revokeApplicationAuthorization(applicationAuthorizationId: UUID!): Boolean!
   generateApplicationToken(applicationId: UUID!): ApplicationTokenPair!
   renewApplicationToken(applicationRefreshToken: String!): ApplicationTokenPair!
+  setRecordShare(target: RecordSharingTargetInput!, principal: RecordSharePrincipalInput!, enabled: Boolean!): RecordSharingDTO!
 }
 
 input AddQuerySubscriptionInput {
@@ -5412,12 +5394,6 @@ input ReportAppConnectionAuthFailureInput {
   reason: String
 }
 
-input ChatThreadShareTargetInput {
-  workspaceMemberId: UUID
-  roleId: UUID
-  everyone: Boolean
-}
-
 input FileAttachmentInput {
   id: UUID!
   filename: String!
@@ -5580,4 +5556,43 @@ input CreateRecordExportInput {
   fieldMetadataIds: [UUID!]!
   filter: JSON
   orderBy: JSON
+}
+
+type RecordPermissionsDTO {
+  canRead: Boolean!
+  canUpdate: Boolean!
+  canDelete: Boolean!
+  canSoftDelete: Boolean!
+}
+
+type RecordSharingGrantDTO {
+  id: ID!
+  principalType: String!
+  principalId: UUID!
+  accessLevel: String!
+  rowCause: String!
+}
+
+type RecordSharingRoleDTO {
+  id: UUID!
+  label: String!
+}
+
+type RecordSharingDTO {
+  permissions: RecordPermissionsDTO!
+  isEnabled: Boolean!
+  hasInheritedAccess: Boolean!
+  roles: [RecordSharingRoleDTO!]!
+  shares: [RecordSharingGrantDTO!]!
+}
+
+input RecordSharingTargetInput {
+  objectMetadataId: UUID!
+  recordId: UUID!
+}
+
+input RecordSharePrincipalInput {
+  workspaceMemberId: UUID
+  roleId: UUID
+  everyone: Boolean
 }

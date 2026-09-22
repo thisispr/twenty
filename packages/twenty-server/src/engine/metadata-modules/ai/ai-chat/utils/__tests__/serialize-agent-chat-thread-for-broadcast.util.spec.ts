@@ -5,19 +5,35 @@ describe('Thread broadcast permissions', () => {
   it.each([
     ['owner', true],
     ['viewer', false],
-  ])('derives management for recipient %s', (recipient, canManage) => {
-    const thread = Object.assign(new AgentChatThreadEntity(), {
-      id: 'thread',
-      userWorkspaceId: 'owner',
-      totalInputCredits: 0,
-      totalOutputCredits: 0,
-    });
-    expect(
-      serializeAgentChatThreadForBroadcast({
-        thread,
-        lastMessageAt: null,
-        recipientUserWorkspaceId: String(recipient),
-      }),
-    ).toMatchObject({ id: 'thread', canManage });
-  });
+  ])(
+    'preserves effective permissions for recipient %s',
+    (_recipient, canUpdate) => {
+      const thread = Object.assign(new AgentChatThreadEntity(), {
+        id: 'thread',
+        userWorkspaceId: 'owner',
+        totalInputCredits: 0,
+        totalOutputCredits: 0,
+      });
+      expect(
+        serializeAgentChatThreadForBroadcast({
+          thread,
+          lastMessageAt: null,
+          permissions: {
+            canRead: true,
+            canUpdate: Boolean(canUpdate),
+            canDelete: false,
+            canSoftDelete: false,
+          },
+        }),
+      ).toMatchObject({
+        id: 'thread',
+        permissions: {
+          canRead: true,
+          canUpdate,
+          canDelete: false,
+          canSoftDelete: false,
+        },
+      });
+    },
+  );
 });

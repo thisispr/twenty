@@ -1,5 +1,3 @@
-/* @license Enterprise */
-
 import { EVERYONE_PRINCIPAL_ID } from 'twenty-shared/constants';
 
 import { type RowAccessPolicySubject } from 'src/engine/twenty-orm/types/row-access-policy.type';

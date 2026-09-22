@@ -1,13 +1,9 @@
 import { useLingui } from '@lingui/react/macro';
-import { IconShare } from 'twenty-ui/icon';
-import { Button } from 'twenty-ui/primitives/input';
+import { AppPath } from 'twenty-shared/types';
+import { getAppPath } from 'twenty-shared/utils';
 
-import { AiChatSharingRefreshEffect } from '@/ai/components/AiChatSharingRefreshEffect';
-import { AiChatSharingDropdownContent } from '@/ai/components/AiChatSharingDropdownContent';
-import { useChatThreadSharing } from '@/ai/hooks/useChatThreadSharing';
-import { Dropdown } from '@/ui/layout/dropdown/components/Dropdown';
-import { isDropdownOpenComponentState } from '@/ui/layout/dropdown/states/isDropdownOpenComponentState';
-import { useAtomComponentStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentStateValue';
+import { useObjectMetadataItem } from '@/object-metadata/hooks/useObjectMetadataItem';
+import { RecordSharingDropdown } from '@/object-record/record-sharing/components/RecordSharingDropdown';
 
 type AiChatSharingDropdownProps = { threadId: string };
 
@@ -15,38 +11,20 @@ export const AiChatSharingDropdown = ({
   threadId,
 }: AiChatSharingDropdownProps) => {
   const { t } = useLingui();
-  const dropdownId = `chat-sharing-${threadId}`;
-  const isDropdownOpen = useAtomComponentStateValue(
-    isDropdownOpenComponentState,
-    dropdownId,
-  );
-  const sharingState = useChatThreadSharing(threadId, isDropdownOpen);
-
+  const { objectMetadataItem } = useObjectMetadataItem({
+    objectNameSingular: 'agentChatThread',
+  });
   return (
-    <>
-      <AiChatSharingRefreshEffect refetch={sharingState.refetch} />
-      {sharingState.sharing?.isEnabled === true && (
-        <Dropdown
-          dropdownId={dropdownId}
-          onOpen={() => {
-            void sharingState.refetch().catch(() => {});
-          }}
-          dropdownPlacement="bottom-end"
-          clickableComponent={
-            <Button
-              size="sm"
-              variant="outline"
-              startIcon={<IconShare />}
-            >{t`Share`}</Button>
-          }
-          dropdownComponents={
-            <AiChatSharingDropdownContent
-              threadId={threadId}
-              sharingState={sharingState}
-            />
-          }
-        />
-      )}
-    </>
+    <RecordSharingDropdown
+      target={{ objectMetadataId: objectMetadataItem.id, recordId: threadId }}
+      title={t`Share conversation`}
+      description={t`People you add can read this conversation and future messages.`}
+      recordUrl={
+        new URL(
+          getAppPath(AppPath.AiChat, { threadId }),
+          window.location.origin,
+        ).href
+      }
+    />
   );
 };

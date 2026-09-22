@@ -1,8 +1,12 @@
 import { styled } from '@linaria/react';
 import { useLingui } from '@lingui/react/macro';
 import { useState } from 'react';
-import { RecordSharePrincipalType, AppPath } from 'twenty-shared/types';
-import { isDefined, getAppPath } from 'twenty-shared/utils';
+import {
+  RecordSharePrincipalType,
+  RecordShareRowCause,
+  RecordShareAccessLevel,
+} from 'twenty-shared/types';
+import { isDefined } from 'twenty-shared/utils';
 import { LightIconButton } from 'twenty-ui/components';
 import {
   IconCheck,
@@ -14,8 +18,8 @@ import {
 import { MenuItem } from 'twenty-ui/primitives/navigation';
 import { themeCssVariables } from 'twenty-ui/theme-constants';
 
-import { AiChatSharingAction } from '@/ai/components/AiChatSharingAction';
-import { type useChatThreadSharing } from '@/ai/hooks/useChatThreadSharing';
+import { RecordSharingAction } from '@/object-record/record-sharing/components/RecordSharingAction';
+import { type useRecordSharing } from '@/object-record/record-sharing/hooks/useRecordSharing';
 import { currentWorkspaceMemberState } from '@/auth/states/currentWorkspaceMemberState';
 import { currentWorkspaceMembersState } from '@/auth/states/currentWorkspaceMembersState';
 import { DropdownContent } from '@/ui/layout/dropdown/components/DropdownContent';
@@ -34,15 +38,19 @@ const StyledDescription = styled.div`
   padding: ${themeCssVariables.spacing[2]};
 `;
 
-type AiChatSharingDropdownContentProps = {
-  threadId: string;
-  sharingState: ReturnType<typeof useChatThreadSharing>;
+type RecordSharingDropdownContentProps = {
+  title: string;
+  description: string;
+  recordUrl: string;
+  sharingState: ReturnType<typeof useRecordSharing>;
 };
 
-export const AiChatSharingDropdownContent = ({
-  threadId,
+export const RecordSharingDropdownContent = ({
+  title,
+  description,
+  recordUrl,
   sharingState,
-}: AiChatSharingDropdownContentProps) => {
+}: RecordSharingDropdownContentProps) => {
   const { t } = useLingui();
   const { sharing, loading, error, saving, setShare, refetch } = sharingState;
   const currentWorkspaceMembers = useAtomStateValue(
@@ -57,10 +65,10 @@ export const AiChatSharingDropdownContent = ({
   const isSharedWithEveryone = shares.some(
     (share) => share.principalType === RecordSharePrincipalType.EVERYONE,
   );
-  const canAdd = sharing?.canManage === true && sharing.isEnabled && !saving;
+  const canAdd =
+    sharing?.permissions.canUpdate === true && sharing.isEnabled && !saving;
   const availableMembers = currentWorkspaceMembers.filter(
     (member) =>
-      member.id !== currentWorkspaceMember?.id &&
       !shares.some((share) => share.principalId === member.id) &&
       matchesSearch(
         `${member.name.firstName} ${member.name.lastName} ${member.userEmail}`,
@@ -74,13 +82,13 @@ export const AiChatSharingDropdownContent = ({
 
   return (
     <DropdownContent widthInPixels={GenericDropdownContentWidth.ExtraLarge}>
-      <DropdownMenuHeader>{t`Share conversation`}</DropdownMenuHeader>
+      <DropdownMenuHeader>{title}</DropdownMenuHeader>
       {loading ? (
         <StyledDescription>{t`Loading…`}</StyledDescription>
       ) : error ? (
         <>
           <StyledDescription role="alert">{t`Sharing settings could not be loaded.`}</StyledDescription>
-          <AiChatSharingAction
+          <RecordSharingAction
             text={t`Try again`}
             onClick={() => {
               void refetch().catch(() => {});
@@ -90,43 +98,70 @@ export const AiChatSharingDropdownContent = ({
       ) : (
         isDefined(sharing) && (
           <>
-            <StyledDescription>{t`People with access can read this conversation and future messages. Only the owner can send messages or make changes.`}</StyledDescription>
-            {!sharing.isEnabled && sharing.canManage && (
-              <StyledDescription>{t`Sharing is unavailable for this workspace. Existing shared access is paused; you can still remove people and roles.`}</StyledDescription>
+            <StyledDescription>{description}</StyledDescription>
+            {!sharing.isEnabled && sharing.permissions.canUpdate && (
+              <StyledDescription>{t`Sharing is unavailable for this workspace. Existing access is unchanged; you can still remove people and roles.`}</StyledDescription>
             )}
-            {sharing.canManage ? (
+            {sharing.hasInheritedAccess && (
+              <StyledDescription>{t`Access can also come from related records. Removing direct access does not remove inherited access.`}</StyledDescription>
+            )}
+            {shares.some(
+              (share) =>
+                share.principalType === RecordSharePrincipalType.EVERYONE &&
+                share.rowCause !== RecordShareRowCause.MANUAL,
+            ) && (
+              <StyledDescription>{t`An application also gives everyone access. Direct sharing changes do not remove that access.`}</StyledDescription>
+            )}
+            {sharing.permissions.canUpdate ? (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuHeader>{t`General access`}</DropdownMenuHeader>
                 <DropdownMenuItemsContainer>
-                  <AiChatSharingAction
+                  <RecordSharingAction
                     text={t`Restricted`}
-                    contextualText={t`Only people and roles you add`}
+                    contextualText={t`Only people with direct or inherited access`}
                     LeftIcon={isSharedWithEveryone ? undefined : IconCheck}
-                    disabled={saving || !isSharedWithEveryone}
+                    disabled={
+                      saving ||
+                      !shares.some(
+                        (share) =>
+                          share.principalType ===
+                            RecordSharePrincipalType.EVERYONE &&
+                          share.rowCause === RecordShareRowCause.MANUAL,
+                      )
+                    }
                     onClick={() => {
-                      void setShare({ everyone: true }, false);
+                      void setShare({
+                        principal: { everyone: true },
+                        enabled: false,
+                      });
                     }}
                   />
-                  <AiChatSharingAction
+                  <RecordSharingAction
                     text={t`Everyone in the workspace`}
-                    contextualText={t`Viewer`}
+                    contextualText={
+                      shares.some(
+                        (share) =>
+                          share.principalType ===
+                            RecordSharePrincipalType.EVERYONE &&
+                          share.accessLevel !== RecordShareAccessLevel.READ,
+                      )
+                        ? t`Editor`
+                        : t`Viewer`
+                    }
                     LeftIcon={isSharedWithEveryone ? IconCheck : IconUsers}
                     disabled={!canAdd || isSharedWithEveryone}
                     onClick={() => {
-                      void setShare({ everyone: true }, true);
+                      void setShare({
+                        principal: { everyone: true },
+                        enabled: true,
+                      });
                     }}
                   />
                 </DropdownMenuItemsContainer>
                 <DropdownMenuSeparator />
                 <DropdownMenuHeader>{t`People and roles with access`}</DropdownMenuHeader>
                 <DropdownMenuItemsContainer hasMaxHeight>
-                  <MenuItem
-                    text={t`You`}
-                    contextualText={t`Owner`}
-                    LeftIcon={IconUsers}
-                    disabled
-                  />
                   {shares
                     .filter(
                       (share) =>
@@ -141,17 +176,30 @@ export const AiChatSharingDropdownContent = ({
                         (item) => item.id === share.principalId,
                       );
                       const label =
-                        share.principalType === RecordSharePrincipalType.ROLE
-                          ? (role?.label ?? t`Deleted role`)
-                          : isDefined(member)
-                            ? `${member.name.firstName} ${member.name.lastName}`.trim() ||
-                              member.userEmail
-                            : t`Deleted member`;
+                        share.principalId === currentWorkspaceMember?.id
+                          ? t`You`
+                          : share.principalType ===
+                              RecordSharePrincipalType.ROLE
+                            ? (role?.label ?? t`Deleted role`)
+                            : isDefined(member)
+                              ? `${member.name.firstName} ${member.name.lastName}`.trim() ||
+                                member.userEmail
+                              : t`Deleted member`;
                       return (
                         <MenuItem
                           key={share.id}
                           text={label}
-                          contextualText={t`Viewer`}
+                          contextualText={
+                            share.rowCause === RecordShareRowCause.OWNER
+                              ? t`Owner`
+                              : share.rowCause ===
+                                  RecordShareRowCause.APPLICATION
+                                ? t`Provided by application`
+                                : share.accessLevel ===
+                                    RecordShareAccessLevel.READ
+                                  ? t`Viewer`
+                                  : t`Editor`
+                          }
                           LeftIcon={
                             share.principalType ===
                             RecordSharePrincipalType.ROLE
@@ -159,21 +207,27 @@ export const AiChatSharingDropdownContent = ({
                               : IconUsers
                           }
                           iconButtons={
-                            <LightIconButton
-                              aria-label={t`Remove ${label}`}
-                              disabled={saving}
-                              onClick={() => {
-                                void setShare(
-                                  share.principalType ===
-                                    RecordSharePrincipalType.ROLE
-                                    ? { roleId: share.principalId }
-                                    : { workspaceMemberId: share.principalId },
-                                  false,
-                                );
-                              }}
-                            >
-                              <IconX />
-                            </LightIconButton>
+                            share.rowCause === RecordShareRowCause.MANUAL ? (
+                              <LightIconButton
+                                aria-label={t`Remove ${label}`}
+                                disabled={saving}
+                                onClick={() => {
+                                  void setShare({
+                                    principal:
+                                      share.principalType ===
+                                      RecordSharePrincipalType.ROLE
+                                        ? { roleId: share.principalId }
+                                        : {
+                                            workspaceMemberId:
+                                              share.principalId,
+                                          },
+                                    enabled: false,
+                                  });
+                                }}
+                              >
+                                <IconX />
+                              </LightIconButton>
+                            ) : undefined
                           }
                         />
                       );
@@ -193,7 +247,7 @@ export const AiChatSharingDropdownContent = ({
                           <StyledDescription>{t`No matching people or roles`}</StyledDescription>
                         )}
                       {availableMembers.map((member) => (
-                        <AiChatSharingAction
+                        <RecordSharingAction
                           key={member.id}
                           text={
                             `${member.name.firstName} ${member.name.lastName}`.trim() ||
@@ -203,22 +257,25 @@ export const AiChatSharingDropdownContent = ({
                           LeftIcon={IconUsers}
                           disabled={!canAdd}
                           onClick={() => {
-                            void setShare(
-                              { workspaceMemberId: member.id },
-                              true,
-                            );
+                            void setShare({
+                              principal: { workspaceMemberId: member.id },
+                              enabled: true,
+                            });
                           }}
                         />
                       ))}
                       {availableRoles.map((role) => (
-                        <AiChatSharingAction
+                        <RecordSharingAction
                           key={role.id}
                           text={role.label}
                           contextualText={t`Role`}
                           LeftIcon={IconLock}
                           disabled={!canAdd}
                           onClick={() => {
-                            void setShare({ roleId: role.id }, true);
+                            void setShare({
+                              principal: { roleId: role.id },
+                              enabled: true,
+                            });
                           }}
                         />
                       ))}
@@ -227,20 +284,15 @@ export const AiChatSharingDropdownContent = ({
                 )}
               </>
             ) : (
-              <StyledDescription>{t`You have view-only access. Contact the owner to change sharing.`}</StyledDescription>
+              <StyledDescription>{t`You have view-only access. Ask someone with edit access to change sharing.`}</StyledDescription>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItemsContainer>
-              <AiChatSharingAction
+              <RecordSharingAction
                 text={t`Copy link`}
                 LeftIcon={IconLink}
                 onClick={() => {
-                  void copyToClipboard(
-                    new URL(
-                      getAppPath(AppPath.AiChat, { threadId }),
-                      window.location.origin,
-                    ).href,
-                  );
+                  void copyToClipboard(recordUrl);
                 }}
               />
             </DropdownMenuItemsContainer>

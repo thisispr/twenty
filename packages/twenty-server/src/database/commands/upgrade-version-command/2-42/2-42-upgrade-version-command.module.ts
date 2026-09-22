@@ -1,3 +1,5 @@
+import { BillingModule } from 'src/engine/core-modules/billing/billing.module';
+import { EnableCommonRecordSharingCommand } from 'src/database/commands/upgrade-version-command/2-42/2-42-workspace-command-1790069860694-enable-common-record-sharing.command';
 import { Module } from '@nestjs/common';
 
 import { MigrateAgentHistoryToWorkspaceCommand } from 'src/database/commands/upgrade-version-command/2-42/2-42-workspace-command-1789914239896-migrate-agent-history-to-workspace.command';
@@ -23,6 +25,7 @@ import { WorkspaceSchemaMigrationRunnerActionHandlersModule } from 'src/engine/w
 
 @Module({
   imports: [
+    BillingModule,
     AgentHistoryMigrationModule,
     AgentChatStreamStateModule,
     AgentHistoryModule,
@@ -35,6 +38,7 @@ import { WorkspaceSchemaMigrationRunnerActionHandlersModule } from 'src/engine/w
     WorkspaceSchemaMigrationRunnerActionHandlersModule,
   ],
   providers: [
+    EnableCommonRecordSharingCommand,
     MigrateAgentHistoryToWorkspaceCommand,
     UnpinCreationCommandsOnRecordSelectionCommand,
     RelinkWorkflowVersionsToCoreWorkflowsCommand,

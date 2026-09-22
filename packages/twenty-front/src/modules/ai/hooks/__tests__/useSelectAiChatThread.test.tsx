@@ -69,7 +69,12 @@ describe('useSelectAiChatThread', () => {
       updatedAt: '2026-09-01',
       conversationSize: 120,
       contextWindowTokens: 1000,
-      canManage: true,
+      permissions: {
+        canRead: true,
+        canUpdate: true,
+        canDelete: true,
+        canSoftDelete: true,
+      },
       totalInputTokens: 250,
       totalOutputTokens: 30,
       totalCacheReadTokens: 80,

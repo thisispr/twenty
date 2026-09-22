@@ -29,6 +29,7 @@ describe('AgentChatStreamingService claim & reap', () => {
     };
     const messageQueueService = { add: jest.fn().mockResolvedValue(undefined) };
     const agentChatService = {
+      assertThreadExecutionAllowed: jest.fn().mockResolvedValue(undefined),
       addMessage: jest
         .fn()
         .mockResolvedValue({ id: 'user-message-id', turnId: 'turn-id' }),

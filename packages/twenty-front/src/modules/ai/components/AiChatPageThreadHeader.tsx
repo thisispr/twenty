@@ -117,13 +117,15 @@ export const AiChatPageThreadHeader = ({
           />
         ) : (
           <StyledTitleDisplay
-            role={thread.canManage ? 'button' : undefined}
-            tabIndex={thread.canManage ? 0 : undefined}
-            aria-label={thread.canManage ? t`Rename chat` : undefined}
-            onClick={thread.canManage ? startRename : undefined}
+            role={thread.permissions.canUpdate ? 'button' : undefined}
+            tabIndex={thread.permissions.canUpdate ? 0 : undefined}
+            aria-label={
+              thread.permissions.canUpdate ? t`Rename chat` : undefined
+            }
+            onClick={thread.permissions.canUpdate ? startRename : undefined}
             onKeyDown={(event) => {
               if (
-                thread.canManage &&
+                thread.permissions.canUpdate &&
                 (event.key === Key.Enter || event.key === ' ')
               ) {
                 event.preventDefault();

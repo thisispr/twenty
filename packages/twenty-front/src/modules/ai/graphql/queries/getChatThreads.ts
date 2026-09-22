@@ -4,7 +4,12 @@ export const GET_CHAT_THREADS = gql`
   query GetChatThreads {
     chatThreads {
       id
-      canManage
+      permissions {
+        canRead
+        canUpdate
+        canDelete
+        canSoftDelete
+      }
       title
       totalCacheReadTokens
       totalInputTokens

@@ -391,10 +391,12 @@ describe('readabilityObjectRecordsPermissions', () => {
 
       expect(response.body.errors).toBeUndefined();
 
-      const groupedNames = response.body.data[GROUP_BY_RESPONSE_KEY].flatMap(
-        (group: { groupByDimensionValues: string[] }) =>
-          group.groupByDimensionValues,
-      ).sort();
+      const groupedNames = response.body.data[GROUP_BY_RESPONSE_KEY]
+        .flatMap(
+          (group: { groupByDimensionValues: string[] }) =>
+            group.groupByDimensionValues,
+        )
+        .sort();
 
       expect(groupedNames).toEqual([
         'SHARED_FULL_WITH_EVERYONE',
@@ -585,12 +587,15 @@ describe('readabilityObjectRecordsPermissions', () => {
       expect(response.body.errors).toBeUndefined();
     });
 
-    it('should return every record', async () => {
+    it('keeps grants enforced with the sharing UI disabled', async () => {
       const response = await makeGraphqlAPIRequest(findManyOperation);
 
       expect(response.body.errors).toBeUndefined();
       expect(collectIds(response.body.data[OBJECT_PLURAL].edges)).toEqual(
-        Object.values(RECORD_IDS).sort(),
+        [
+          RECORD_IDS.SHARED_FULL_WITH_EVERYONE,
+          RECORD_IDS.SHARED_FULL_WITH_ADMIN_ROLE,
+        ].sort(),
       );
     });
   });

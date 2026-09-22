@@ -220,6 +220,50 @@ export class WorkspaceRepository<TEntity extends ObjectLiteral = ObjectRecord> {
     this.applyRowLevelPermissionPredicates(queryBuilder, kind);
   }
 
+  // Capability reads use the same validators and SQL predicates as a mutation,
+  // without performing a no-op write or emitting record events.
+  async findRecordIdsAllowedForOperation({
+    recordIds,
+    operationType,
+    updatedColumns = [],
+    withDeleted = false,
+  }: {
+    recordIds: string[];
+    operationType: OperationType;
+    updatedColumns?: string[];
+    withDeleted?: boolean;
+  }): Promise<string[]> {
+    if (recordIds.length === 0) {
+      return [];
+    }
+    try {
+      if (operationType !== 'select') {
+        this.validateWriteIsPermitted({
+          operationType,
+          columnsToReturn: ['id'],
+          updatedColumns,
+        });
+      }
+      const queryBuilder = this.createQueryBuilder()
+        .select(['id'])
+        .where({ id: In(recordIds) });
+      if (withDeleted) {
+        queryBuilder.withDeleted();
+      }
+      this.applyRowLevelPermissionPredicates(queryBuilder, operationType);
+      const records = await queryBuilder.getMany<ObjectRecord>();
+      return records.map(({ id }) => id);
+    } catch (error) {
+      if (
+        error instanceof PermissionsException &&
+        error.code === PermissionsExceptionCode.PERMISSION_DENIED
+      ) {
+        return [];
+      }
+      throw error;
+    }
+  }
+
   getInternalContext(): WorkspaceInternalContext {
     return this.options.internalContext;
   }
@@ -1337,10 +1381,7 @@ export class WorkspaceRepository<TEntity extends ObjectLiteral = ObjectRecord> {
   }
 
   private shouldValidateInheritedParents(): boolean {
-    return (
-      !this.options.shouldBypassPermissionChecks &&
-      this.isRecordSharingEnabled()
-    );
+    return !this.options.shouldBypassPermissionChecks;
   }
 
   private hasInheritingRecordLinks(): boolean {
@@ -1418,10 +1459,6 @@ export class WorkspaceRepository<TEntity extends ObjectLiteral = ObjectRecord> {
       flatObjectMetadataMaps:
         this.options.internalContext.flatObjectMetadataMaps,
     });
-  }
-
-  private isRecordSharingEnabled(): boolean {
-    return this.options.internalContext.isRecordSharingEnabled;
   }
 
   private async resolveWritableRecordIds({
@@ -1618,8 +1655,7 @@ export class WorkspaceRepository<TEntity extends ObjectLiteral = ObjectRecord> {
 
     if (
       records.length === 0 ||
-      flatObjectMetadata.readability !== MetadataReadability.INHERITED ||
-      !this.isRecordSharingEnabled()
+      flatObjectMetadata.readability !== MetadataReadability.INHERITED
     ) {
       return undefined;
     }
@@ -1720,7 +1756,7 @@ export class WorkspaceRepository<TEntity extends ObjectLiteral = ObjectRecord> {
       .withDeleted();
   }
 
-  private validateWriteIsPermitted({
+  validateWriteIsPermitted({
     operationType,
     columnsToReturn,
     updatedColumns,
@@ -1991,7 +2027,6 @@ export class WorkspaceRepository<TEntity extends ObjectLiteral = ObjectRecord> {
 
   private resolveRowAccessPolicyEnvironment(): RowAccessPolicyEnvironment {
     return {
-      isRecordSharingEnabled: this.isRecordSharingEnabled(),
       flatFieldMetadataMaps: this.options.internalContext.flatFieldMetadataMaps,
       flatObjectMetadataMaps:
         this.options.internalContext.flatObjectMetadataMaps,

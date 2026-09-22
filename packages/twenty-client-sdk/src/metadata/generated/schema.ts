@@ -2934,27 +2934,6 @@ export interface RecordExport {
     __typename: 'RecordExport'
 }
 
-export interface ChatThreadShareDTO {
-    id: Scalars['ID']
-    principalType: Scalars['String']
-    principalId: Scalars['UUID']
-    __typename: 'ChatThreadShareDTO'
-}
-
-export interface ChatThreadSharingRoleDTO {
-    id: Scalars['UUID']
-    label: Scalars['String']
-    __typename: 'ChatThreadSharingRoleDTO'
-}
-
-export interface ChatThreadSharingDTO {
-    canManage: Scalars['Boolean']
-    isEnabled: Scalars['Boolean']
-    roles: ChatThreadSharingRoleDTO[]
-    shares: ChatThreadShareDTO[]
-    __typename: 'ChatThreadSharingDTO'
-}
-
 export interface AiChatUsage {
     limitValue: Scalars['BigInt']
     consumedValue?: Scalars['BigInt']
@@ -3005,7 +2984,7 @@ export interface AgentChatThread {
     updatedAt: Scalars['DateTime']
     deletedAt?: Scalars['DateTime']
     lastMessageAt?: Scalars['DateTime']
-    canManage: Scalars['Boolean']
+    permissions: RecordPermissionsDTO
     __typename: 'AgentChatThread'
 }
 
@@ -3339,7 +3318,6 @@ export interface Query {
     appConnections: AppConnection[]
     appConnection: AppConnection
     findWorkspaceAiStats: WorkspaceAiStats
-    chatThreadSharing: ChatThreadSharingDTO
     aiChatUsage?: AiChatUsage
     chatThreads: AgentChatThread[]
     chatThread: AgentChatThread
@@ -3370,6 +3348,7 @@ export interface Query {
     findManyPublicDomains: PublicDomain[]
     exportApplication: ApplicationExport
     currentUserApplicationAuthorizations: ApplicationAuthorization[]
+    recordSharing: RecordSharingDTO
     __typename: 'Query'
 }
 
@@ -3561,7 +3540,6 @@ export interface Mutation {
     enqueueJob: EnqueueJobResult
     enqueueJobs: EnqueueJobsResult
     reportAppConnectionAuthFailure: Scalars['Boolean']
-    setChatThreadShare: ChatThreadSharingDTO
     createChatThread: AgentChatThread
     sendChatMessage: SendChatMessageResult
     retryChatMessage: SendChatMessageResult
@@ -3636,6 +3614,7 @@ export interface Mutation {
     revokeApplicationAuthorization: Scalars['Boolean']
     generateApplicationToken: ApplicationTokenPair
     renewApplicationToken: ApplicationTokenPair
+    setRecordShare: RecordSharingDTO
     __typename: 'Mutation'
 }
 
@@ -3652,6 +3631,38 @@ export interface Subscription {
     eventLogsLive?: EventLogRecord[]
     exportRecords: RecordExport
     __typename: 'Subscription'
+}
+
+export interface RecordPermissionsDTO {
+    canRead: Scalars['Boolean']
+    canUpdate: Scalars['Boolean']
+    canDelete: Scalars['Boolean']
+    canSoftDelete: Scalars['Boolean']
+    __typename: 'RecordPermissionsDTO'
+}
+
+export interface RecordSharingGrantDTO {
+    id: Scalars['ID']
+    principalType: Scalars['String']
+    principalId: Scalars['UUID']
+    accessLevel: Scalars['String']
+    rowCause: Scalars['String']
+    __typename: 'RecordSharingGrantDTO'
+}
+
+export interface RecordSharingRoleDTO {
+    id: Scalars['UUID']
+    label: Scalars['String']
+    __typename: 'RecordSharingRoleDTO'
+}
+
+export interface RecordSharingDTO {
+    permissions: RecordPermissionsDTO
+    isEnabled: Scalars['Boolean']
+    hasInheritedAccess: Scalars['Boolean']
+    roles: RecordSharingRoleDTO[]
+    shares: RecordSharingGrantDTO[]
+    __typename: 'RecordSharingDTO'
 }
 
 export interface BillingProductDTOGenqlSelection{
@@ -6717,30 +6728,6 @@ export interface RecordExportGenqlSelection{
     __scalar?: boolean | number
 }
 
-export interface ChatThreadShareDTOGenqlSelection{
-    id?: boolean | number
-    principalType?: boolean | number
-    principalId?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-export interface ChatThreadSharingRoleDTOGenqlSelection{
-    id?: boolean | number
-    label?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-export interface ChatThreadSharingDTOGenqlSelection{
-    canManage?: boolean | number
-    isEnabled?: boolean | number
-    roles?: ChatThreadSharingRoleDTOGenqlSelection
-    shares?: ChatThreadShareDTOGenqlSelection
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
 export interface AiChatUsageGenqlSelection{
     limitValue?: boolean | number
     consumedValue?: boolean | number
@@ -6794,7 +6781,7 @@ export interface AgentChatThreadGenqlSelection{
     updatedAt?: boolean | number
     deletedAt?: boolean | number
     lastMessageAt?: boolean | number
-    canManage?: boolean | number
+    permissions?: RecordPermissionsDTOGenqlSelection
     __typename?: boolean | number
     __scalar?: boolean | number
 }
@@ -7142,7 +7129,6 @@ export interface QueryGenqlSelection{
     appConnections?: (AppConnectionGenqlSelection & { __args?: {filter?: (ListAppConnectionsInput | null)} })
     appConnection?: (AppConnectionGenqlSelection & { __args: {id: Scalars['ID']} })
     findWorkspaceAiStats?: WorkspaceAiStatsGenqlSelection
-    chatThreadSharing?: (ChatThreadSharingDTOGenqlSelection & { __args: {threadId: Scalars['UUID']} })
     aiChatUsage?: AiChatUsageGenqlSelection
     chatThreads?: AgentChatThreadGenqlSelection
     chatThread?: (AgentChatThreadGenqlSelection & { __args: {id: Scalars['UUID']} })
@@ -7173,6 +7159,7 @@ export interface QueryGenqlSelection{
     findManyPublicDomains?: PublicDomainGenqlSelection
     exportApplication?: (ApplicationExportGenqlSelection & { __args: {universalIdentifier: Scalars['UUID']} })
     currentUserApplicationAuthorizations?: ApplicationAuthorizationGenqlSelection
+    recordSharing?: (RecordSharingDTOGenqlSelection & { __args: {target: RecordSharingTargetInput} })
     __typename?: boolean | number
     __scalar?: boolean | number
 }
@@ -7401,7 +7388,6 @@ export interface MutationGenqlSelection{
     enqueueJob?: (EnqueueJobResultGenqlSelection & { __args: {input: EnqueueJobInput} })
     enqueueJobs?: (EnqueueJobsResultGenqlSelection & { __args: {input: EnqueueJobsInput} })
     reportAppConnectionAuthFailure?: { __args: {input: ReportAppConnectionAuthFailureInput} }
-    setChatThreadShare?: (ChatThreadSharingDTOGenqlSelection & { __args: {threadId: Scalars['UUID'], target: ChatThreadShareTargetInput, enabled: Scalars['Boolean']} })
     createChatThread?: AgentChatThreadGenqlSelection
     sendChatMessage?: (SendChatMessageResultGenqlSelection & { __args: {threadId: Scalars['UUID'], text: Scalars['String'], messageId: Scalars['UUID'], browsingContext?: (Scalars['JSON'] | null), modelId?: (Scalars['String'] | null), fileAttachments?: (FileAttachmentInput[] | null)} })
     retryChatMessage?: (SendChatMessageResultGenqlSelection & { __args: {threadId: Scalars['UUID'], modelId?: (Scalars['String'] | null)} })
@@ -7476,6 +7462,7 @@ export interface MutationGenqlSelection{
     revokeApplicationAuthorization?: { __args: {applicationAuthorizationId: Scalars['UUID']} }
     generateApplicationToken?: (ApplicationTokenPairGenqlSelection & { __args: {applicationId: Scalars['UUID']} })
     renewApplicationToken?: (ApplicationTokenPairGenqlSelection & { __args: {applicationRefreshToken: Scalars['String']} })
+    setRecordShare?: (RecordSharingDTOGenqlSelection & { __args: {target: RecordSharingTargetInput, principal: RecordSharePrincipalInput, enabled: Scalars['Boolean']} })
     __typename?: boolean | number
     __scalar?: boolean | number
 }
@@ -7878,8 +7865,6 @@ export interface EnqueueJobItemInput {payload?: (Scalars['JSON'] | null),jobId?:
 
 export interface ReportAppConnectionAuthFailureInput {id: Scalars['ID'],reason?: (Scalars['String'] | null)}
 
-export interface ChatThreadShareTargetInput {workspaceMemberId?: (Scalars['UUID'] | null),roleId?: (Scalars['UUID'] | null),everyone?: (Scalars['Boolean'] | null)}
-
 export interface FileAttachmentInput {id: Scalars['UUID'],filename: Scalars['String']}
 
 export interface AgentChatQuestionAnswerInput {questionIndex: Scalars['Int'],selectedOptionIndices: Scalars['Int'][],freeText?: (Scalars['String'] | null)}
@@ -7931,6 +7916,46 @@ export interface SubscriptionGenqlSelection{
 export interface LogicFunctionLogsInput {applicationId?: (Scalars['UUID'] | null),applicationUniversalIdentifier?: (Scalars['UUID'] | null),name?: (Scalars['String'] | null),id?: (Scalars['UUID'] | null),universalIdentifier?: (Scalars['UUID'] | null)}
 
 export interface CreateRecordExportInput {objectMetadataId: Scalars['UUID'],fieldMetadataIds: Scalars['UUID'][],filter?: (Scalars['JSON'] | null),orderBy?: (Scalars['JSON'] | null)}
+
+export interface RecordPermissionsDTOGenqlSelection{
+    canRead?: boolean | number
+    canUpdate?: boolean | number
+    canDelete?: boolean | number
+    canSoftDelete?: boolean | number
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+export interface RecordSharingGrantDTOGenqlSelection{
+    id?: boolean | number
+    principalType?: boolean | number
+    principalId?: boolean | number
+    accessLevel?: boolean | number
+    rowCause?: boolean | number
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+export interface RecordSharingRoleDTOGenqlSelection{
+    id?: boolean | number
+    label?: boolean | number
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+export interface RecordSharingDTOGenqlSelection{
+    permissions?: RecordPermissionsDTOGenqlSelection
+    isEnabled?: boolean | number
+    hasInheritedAccess?: boolean | number
+    roles?: RecordSharingRoleDTOGenqlSelection
+    shares?: RecordSharingGrantDTOGenqlSelection
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+export interface RecordSharingTargetInput {objectMetadataId: Scalars['UUID'],recordId: Scalars['UUID']}
+
+export interface RecordSharePrincipalInput {workspaceMemberId?: (Scalars['UUID'] | null),roleId?: (Scalars['UUID'] | null),everyone?: (Scalars['Boolean'] | null)}
 
 
     const BillingProductDTO_possibleTypes: string[] = ['BillingLicensedProduct','BillingMeteredProduct']
@@ -10109,30 +10134,6 @@ export interface CreateRecordExportInput {objectMetadataId: Scalars['UUID'],fiel
     
 
 
-    const ChatThreadShareDTO_possibleTypes: string[] = ['ChatThreadShareDTO']
-    export const isChatThreadShareDTO = (obj?: { __typename?: any } | null): obj is ChatThreadShareDTO => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isChatThreadShareDTO"')
-      return ChatThreadShareDTO_possibleTypes.includes(obj.__typename)
-    }
-    
-
-
-    const ChatThreadSharingRoleDTO_possibleTypes: string[] = ['ChatThreadSharingRoleDTO']
-    export const isChatThreadSharingRoleDTO = (obj?: { __typename?: any } | null): obj is ChatThreadSharingRoleDTO => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isChatThreadSharingRoleDTO"')
-      return ChatThreadSharingRoleDTO_possibleTypes.includes(obj.__typename)
-    }
-    
-
-
-    const ChatThreadSharingDTO_possibleTypes: string[] = ['ChatThreadSharingDTO']
-    export const isChatThreadSharingDTO = (obj?: { __typename?: any } | null): obj is ChatThreadSharingDTO => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isChatThreadSharingDTO"')
-      return ChatThreadSharingDTO_possibleTypes.includes(obj.__typename)
-    }
-    
-
-
     const AiChatUsage_possibleTypes: string[] = ['AiChatUsage']
     export const isAiChatUsage = (obj?: { __typename?: any } | null): obj is AiChatUsage => {
       if (!obj?.__typename) throw new Error('__typename is missing in "isAiChatUsage"')
@@ -10371,6 +10372,38 @@ export interface CreateRecordExportInput {objectMetadataId: Scalars['UUID'],fiel
       return Subscription_possibleTypes.includes(obj.__typename)
     }
     
+
+
+    const RecordPermissionsDTO_possibleTypes: string[] = ['RecordPermissionsDTO']
+    export const isRecordPermissionsDTO = (obj?: { __typename?: any } | null): obj is RecordPermissionsDTO => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isRecordPermissionsDTO"')
+      return RecordPermissionsDTO_possibleTypes.includes(obj.__typename)
+    }
+
+
+
+    const RecordSharingGrantDTO_possibleTypes: string[] = ['RecordSharingGrantDTO']
+    export const isRecordSharingGrantDTO = (obj?: { __typename?: any } | null): obj is RecordSharingGrantDTO => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isRecordSharingGrantDTO"')
+      return RecordSharingGrantDTO_possibleTypes.includes(obj.__typename)
+    }
+
+
+
+    const RecordSharingRoleDTO_possibleTypes: string[] = ['RecordSharingRoleDTO']
+    export const isRecordSharingRoleDTO = (obj?: { __typename?: any } | null): obj is RecordSharingRoleDTO => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isRecordSharingRoleDTO"')
+      return RecordSharingRoleDTO_possibleTypes.includes(obj.__typename)
+    }
+
+
+
+    const RecordSharingDTO_possibleTypes: string[] = ['RecordSharingDTO']
+    export const isRecordSharingDTO = (obj?: { __typename?: any } | null): obj is RecordSharingDTO => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isRecordSharingDTO"')
+      return RecordSharingDTO_possibleTypes.includes(obj.__typename)
+    }
+
 
 export const enumApplicationRegistrationSourceType = {
    NPM: 'NPM' as const,

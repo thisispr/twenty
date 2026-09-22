@@ -1,5 +1,3 @@
-/* @license Enterprise */
-
 import { Injectable } from '@nestjs/common';
 
 import { isNonEmptyArray } from 'twenty-shared/utils';
@@ -57,7 +55,6 @@ export class ShareWithService {
     objectMetadataId,
     recordIds,
     apiKeyRoleMap,
-    isRecordSharingEnabled,
     shareWith,
     transactionScope,
   }: {
@@ -65,7 +62,6 @@ export class ShareWithService {
     objectMetadataId: string;
     recordIds: string[];
     apiKeyRoleMap: Record<string, string>;
-    isRecordSharingEnabled: boolean;
     shareWith?: ShareWithInput[] | null;
     transactionScope?: WorkspaceTransactionScope;
   }): Promise<void> {
@@ -86,7 +82,6 @@ export class ShareWithService {
         objectMetadataId,
         authContext,
         apiKeyRoleMap,
-        isRecordSharingEnabled,
         shareWith,
       }),
       transactionScope,

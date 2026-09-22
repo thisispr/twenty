@@ -4,10 +4,7 @@ import { Injectable } from '@nestjs/common';
 
 import { isDefined } from 'twenty-shared/utils';
 import { In, type EntityManager } from 'typeorm';
-import {
-  RecordShareAccessLevel,
-  RecordShareRowCause,
-} from 'twenty-shared/types';
+import { RecordShareRowCause } from 'twenty-shared/types';
 
 import {
   RecordShareException,
@@ -28,76 +25,56 @@ type RecordShareRepository = WorkspaceRepository<RecordShare>;
 export class RecordShareService {
   constructor(private readonly workspaceOrmManager: WorkspaceOrmManager) {}
 
-  async findManualReadRecordIdsByPrincipals({
-    workspaceId,
-    objectMetadataId,
-    principalIds,
-  }: {
-    workspaceId: string;
-    objectMetadataId: string;
-    principalIds: string[];
-  }): Promise<string[]> {
-    if (principalIds.length === 0) {
-      return [];
-    }
-
-    const records = await this.withRepository({ workspaceId }, (repository) =>
-      repository
-        .createQueryBuilder('recordShare')
-        .select('recordShare.recordId', 'recordId')
-        .distinctOn(['recordShare.recordId'])
-        .where({
-          objectMetadataId,
-          principalId: In(principalIds),
-          rowCause: RecordShareRowCause.MANUAL,
-          accessLevel: RecordShareAccessLevel.READ,
-        })
-        .andWhere('"recordShare"."sourceId" = "recordShare"."recordId"')
-        .getRawMany<{ recordId: string }>(),
-    );
-    return records.map(({ recordId }) => recordId);
-  }
-
-  // Callers must authorize management of the target record before using this
-  // system repository. Other sources (including ownership) are never removed.
+  // Authorization and grant changes must share the caller's transaction.
+  // OWNER and APPLICATION grants are managed by their respective producers.
   async setManualShare({
     workspaceId,
     share,
     enabled,
+    transactionScope,
   }: {
     workspaceId: string;
     share: Omit<RecordShareInput, 'rowCause'>;
     enabled: boolean;
+    transactionScope?: WorkspaceTransactionScope;
   }): Promise<void> {
+    const write = async (scope: WorkspaceTransactionScope) => {
+      if (scope.workspaceId !== workspaceId) {
+        throw new RecordShareException(
+          'Transaction belongs to another workspace',
+          RecordShareExceptionCode.TRANSACTION_SCOPE_WORKSPACE_MISMATCH,
+        );
+      }
+      await scope.executeRawQuery(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+        [
+          `record-share:${workspaceId}:${share.objectMetadataId}:${share.recordId}`,
+        ],
+      );
+      await this.withRepository(
+        { workspaceId, transactionScope: scope },
+        async (repository) => {
+          await repository.delete({
+            objectMetadataId: share.objectMetadataId,
+            recordId: share.recordId,
+            principalId: share.principalId,
+            principalType: share.principalType,
+            rowCause: RecordShareRowCause.MANUAL,
+          });
+          if (enabled) {
+            await repository.insert({
+              ...share,
+              rowCause: RecordShareRowCause.MANUAL,
+            });
+          }
+        },
+      );
+    };
+    if (isDefined(transactionScope)) {
+      return write(transactionScope);
+    }
     await this.workspaceOrmManager.executeInWorkspaceContext(
-      () =>
-        this.workspaceOrmManager.runInWorkspaceTransaction(async (scope) => {
-          await scope.executeRawQuery(
-            'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
-            [
-              `record-share:${workspaceId}:${share.objectMetadataId}:${share.recordId}`,
-            ],
-          );
-          await this.withRepository(
-            { workspaceId, transactionScope: scope },
-            async (repository) => {
-              await repository.delete({
-                objectMetadataId: share.objectMetadataId,
-                recordId: share.recordId,
-                principalId: share.principalId,
-                principalType: share.principalType,
-                rowCause: RecordShareRowCause.MANUAL,
-                sourceId: share.sourceId,
-              });
-              if (enabled) {
-                await repository.insert({
-                  ...share,
-                  rowCause: RecordShareRowCause.MANUAL,
-                });
-              }
-            },
-          );
-        }),
+      () => this.workspaceOrmManager.runInWorkspaceTransaction(write),
       buildSystemAuthContext(workspaceId),
     );
   }
