@@ -26,7 +26,8 @@ import {
   IconPlus,
   IconTrash,
 } from 'twenty-ui/icon';
-import { Button } from 'twenty-ui/primitives/input';
+import { Button, Field } from 'twenty-ui/primitives/input';
+import { FormFieldInputContainer } from '@/ui/input/components/FormFieldInputContainer';
 import { HorizontalSeparator } from 'twenty-ui/primitives/layout';
 import { themeCssVariables } from 'twenty-ui/theme-constants';
 
@@ -34,6 +35,17 @@ const StyledQuestion = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${themeCssVariables.spacing[3]};
+`;
+
+const StyledNameRow = styled.div`
+  align-items: end;
+  display: flex;
+  gap: ${themeCssVariables.spacing[2]};
+
+  & > :first-child {
+    flex: 1;
+    min-width: 0;
+  }
 `;
 
 type WorkflowEditActionClassifyProps = {
@@ -205,16 +217,16 @@ export const WorkflowEditActionClassify = ({
           <StyledQuestion key={question.id}>
             <HorizontalSeparator noMargin />
 
-            <FormTextFieldInput
-              label={t`Name`}
-              hint={t`Use this name to find the answer in later workflow steps.`}
-              defaultValue={question.name}
-              placeholder={namePlaceholders[question.type]}
-              readonly={readonly}
-              onChange={(name) => updateQuestion(question.id, { name })}
-              action={
-                !readonly &&
-                questions.length > 1 && (
+            <FormFieldInputContainer>
+              <StyledNameRow>
+                <FormTextFieldInput
+                  label={t`Name`}
+                  defaultValue={question.name}
+                  placeholder={namePlaceholders[question.type]}
+                  readonly={readonly}
+                  onChange={(name) => updateQuestion(question.id, { name })}
+                />
+                {!readonly && questions.length > 1 && (
                   <Button
                     startIcon={<IconTrash />}
                     aria-label={t`Delete`}
@@ -226,9 +238,12 @@ export const WorkflowEditActionClassify = ({
                       })
                     }
                   />
-                )
-              }
-            />
+                )}
+              </StyledNameRow>
+              <Field.Description>
+                {t`Use this name to find the answer in later workflow steps.`}
+              </Field.Description>
+            </FormFieldInputContainer>
 
             <Select
               dropdownId={`workflow-classify-question-type-${question.id}`}
